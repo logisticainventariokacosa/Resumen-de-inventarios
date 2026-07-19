@@ -175,7 +175,6 @@
   }
   .filtro-info.visible{display:block;}
 
-  /* ===== Vista de analista expandido en tienda ===== */
   .analista-expandido-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
   @media(max-width:700px){.analista-expandido-grid{grid-template-columns:1fr;}}
   .analista-expandido-grid .stat-list{grid-template-columns:1fr 1fr;}
@@ -230,7 +229,7 @@
 </div>
 
 <script>
-const API_URL = 'https://script.google.com/macros/s/AKfycby3oH1T2AAZYq5bLjqH1Y_i93LBoFn5I8C0-9ytqws3L_RQ6c4elnHvCK_huEpVP9oyqA/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwa8KLE0CF0qnhYPD7_E5oSfyYKP4uqaZBLWWgA6d65koHtrCU0KDM1Y76140uAleZm/exec';
 
 const $ = id => document.getElementById(id);
 let chartRef = null;
@@ -238,14 +237,12 @@ let chartRef2 = null;
 let modeloGlobal = null;
 let vistaActual = { tipo: 'general', nombre: null, analistaDesplegado: null, tiendaFiltro: null };
 
-// ===== HELPERS =====
 function showLoading(){ $('statusDot').className='status-dot loading'; }
 function hideLoading(){ $('statusDot').className='status-dot'; }
 function fmt(n){ return new Intl.NumberFormat('es-VE').format(Math.round(n || 0)); }
 function fmtDate(iso){ if(!iso)return '—'; const d=new Date(iso); if(isNaN(d))return iso; return d.toLocaleDateString('es-VE'); }
 function destroyChart(){ if(chartRef){ chartRef.destroy(); chartRef=null; } if(chartRef2){ chartRef2.destroy(); chartRef2=null; } }
 
-// ===== API =====
 async function api(action, params) {
   const url = new URL(API_URL);
   url.searchParams.set('action', action);
@@ -254,16 +251,12 @@ async function api(action, params) {
   return res.json();
 }
 
-// ===== CARGA OPTIMIZADA =====
 async function cargarModeloCompleto() {
   if (modeloGlobal) return modeloGlobal;
-  
   showLoading();
   try {
     const respuesta = await api('modelo_completo');
-    if (respuesta.error) {
-      throw new Error(respuesta.error);
-    }
+    if (respuesta.error) throw new Error(respuesta.error);
     modeloGlobal = respuesta;
     return modeloGlobal;
   } catch (err) {
@@ -280,11 +273,10 @@ async function cargarModeloCompleto() {
   }
 }
 
-// ===== RENDER =====
 async function renderVistaGeneral() {
   destroyChart();
   vistaActual = { tipo: 'general', nombre: null, analistaDesplegado: null, tiendaFiltro: null };
-  const m = await cargarModeloCompleto();
+  await cargarModeloCompleto();
   $('content').innerHTML = `
     <div class="section-title">Vista general</div>
     <div class="card">
@@ -296,16 +288,13 @@ async function renderVistaGeneral() {
 async function renderTienda(nombre) {
   destroyChart();
   vistaActual = { tipo: 'tienda', nombre: nombre, analistaDesplegado: null, tiendaFiltro: null };
-  $('content').innerHTML = `
-    <div class="loading-state"><div class="spinner"></div><div class="text">Cargando tienda…</div></div>`;
+  $('content').innerHTML = `<div class="loading-state"><div class="spinner"></div><div class="text">Cargando tienda…</div></div>`;
   
   let t = null;
   if (modeloGlobal && modeloGlobal.tiendas) {
     t = modeloGlobal.tiendas.find(x => x.nombre === nombre);
   }
-  if (!t) {
-    t = await api('tienda', { nombre });
-  }
+  if (!t) t = await api('tienda', { nombre });
   
   if (t.error) {
     $('content').innerHTML = `<div class="empty-state">No se encontró la tienda.</div>`;
@@ -433,7 +422,6 @@ async function renderTienda(nombre) {
   actualizarFiltros();
 }
 
-// ===== Desplegar analista dentro de la vista de tienda (CON FILTRO) =====
 async function desplegarAnalistaEnTienda(nombreAnalista, nombreTienda) {
   const container = document.getElementById('analistaExpandido');
   if (!container) return;
@@ -468,10 +456,7 @@ async function desplegarAnalistaEnTienda(nombreAnalista, nombreTienda) {
     return;
   }
 
-  // Calcular promedio por día para esta tienda (usando los días activos del analista en general)
-  // Como el backend no devuelve días por tienda, usamos los días globales como aproximación
-  const diasActivos = a.diasActivos || 1;
-  const promedioPorDia = a.codigosContados / diasActivos;
+  const promedioPorDia = a.promedioCodigosPorDia || (a.codigosContados / (a.diasActivos || 1));
 
   container.innerHTML = `
     <div class="card analista-card">
@@ -486,6 +471,7 @@ async function desplegarAnalistaEnTienda(nombreAnalista, nombreTienda) {
             <div class="item"><div class="k">Piezas contadas</div><div class="v">${fmt(a.piezasContadas)}</div></div>
             <div class="item"><div class="k">Sin diferencia (OK)</div><div class="v" style="color:var(--green);">${fmt(a.conteosOk)}</div></div>
             <div class="item"><div class="k">Con diferencia</div><div class="v" style="color:var(--red);">${fmt(a.conteosDiferencia)}</div></div>
+            <div class="item"><div class="k">Días activos en esta tienda</div><div class="v">${a.diasActivos || '—'}</div></div>
             <div class="item"><div class="k">Promedio códigos / día</div><div class="v">${promedioPorDia.toFixed(2)}</div></div>
           </div>
         </div>
@@ -516,10 +502,17 @@ async function desplegarAnalistaEnTienda(nombreAnalista, nombreTienda) {
           legend: { display: false },
           tooltip: { callbacks: { label: ctx => ctx.label + ': ' + fmt(ctx.raw) } }
         },
-        scales: { y: { beginAtZero: true, ticks: { callback: v => fmt(v), font: { size: 10 } } } }
+        scales: { 
+          y: { 
+            beginAtZero: true, 
+            ticks: { callback: v => fmt(v), font: { size: 10 } },
+            grid: { display: false }
+          },
+          x: { grid: { display: false } }
+        }
       },
       plugins: [{
-        id: 'barLabels',
+        id: 'barLabelsInside',
         afterDraw(chart) {
           const ctx2 = chart.ctx;
           chart.data.datasets.forEach((dataset) => {
@@ -527,11 +520,17 @@ async function desplegarAnalistaEnTienda(nombreAnalista, nombreTienda) {
             meta.data.forEach((bar, index) => {
               const value = dataset.data[index];
               if (value === 0) return;
-              ctx2.fillStyle = '#16202E';
-              ctx2.font = 'bold 12px JetBrains Mono, monospace';
+              const barHeight = bar.height || 30;
+              const yPos = bar.y + (barHeight / 2) + 4;
+              const xPos = bar.x;
+              ctx2.fillStyle = '#FFFFFF';
+              ctx2.font = 'bold 13px JetBrains Mono, monospace';
               ctx2.textAlign = 'center';
-              ctx2.textBaseline = 'bottom';
-              ctx2.fillText(fmt(value), bar.x, bar.y - 8);
+              ctx2.textBaseline = 'middle';
+              ctx2.shadowColor = 'rgba(0,0,0,0.3)';
+              ctx2.shadowBlur = 4;
+              ctx2.fillText(fmt(value), xPos, yPos);
+              ctx2.shadowBlur = 0;
             });
           });
         }
@@ -548,20 +547,16 @@ function cerrarAnalistaDesplegado() {
   vistaActual.analistaDesplegado = null;
 }
 
-// ===== RENDER ANALISTA (vista principal) =====
 async function renderAnalista(nombre) {
   destroyChart();
   vistaActual = { tipo: 'analista', nombre: nombre, analistaDesplegado: null, tiendaFiltro: null };
-  $('content').innerHTML = `
-    <div class="loading-state"><div class="spinner"></div><div class="text">Cargando analista…</div></div>`;
+  $('content').innerHTML = `<div class="loading-state"><div class="spinner"></div><div class="text">Cargando analista…</div></div>`;
 
   let a = null;
   if (modeloGlobal && modeloGlobal.analistas) {
     a = modeloGlobal.analistas.find(x => x.nombre === nombre);
   }
-  if (!a) {
-    a = await api('analista', { nombre });
-  }
+  if (!a) a = await api('analista', { nombre });
 
   if (a.error) {
     $('content').innerHTML = `<div class="empty-state">No se encontró el analista.</div>`;
@@ -586,7 +581,6 @@ async function renderAnalista(nombre) {
     return;
   }
 
-  // Guardar los datos globales para reset
   const datosGlobales = {
     codigosContados: a.codigosContados,
     piezasContadas: a.piezasContadas,
@@ -654,7 +648,7 @@ async function renderAnalista(nombre) {
         }
       },
       plugins: [{
-        id: 'barLabels',
+        id: 'barLabelsInside',
         afterDraw(chart) {
           const ctx2 = chart.ctx;
           chart.data.datasets.forEach((dataset) => {
@@ -662,11 +656,17 @@ async function renderAnalista(nombre) {
             meta.data.forEach((bar, index) => {
               const value = dataset.data[index];
               if (value === 0) return;
-              ctx2.fillStyle = '#16202E';
+              const barHeight = bar.height || 30;
+              const yPos = bar.y + (barHeight / 2) + 4;
+              const xPos = bar.x;
+              ctx2.fillStyle = '#FFFFFF';
               ctx2.font = 'bold 14px JetBrains Mono, monospace';
               ctx2.textAlign = 'center';
-              ctx2.textBaseline = 'bottom';
-              ctx2.fillText(fmt(value), bar.x, bar.y - 12);
+              ctx2.textBaseline = 'middle';
+              ctx2.shadowColor = 'rgba(0,0,0,0.3)';
+              ctx2.shadowBlur = 4;
+              ctx2.fillText(fmt(value), xPos, yPos);
+              ctx2.shadowBlur = 0;
             });
           });
         }
@@ -692,7 +692,6 @@ async function renderAnalista(nombre) {
   actualizarFiltros();
 }
 
-// ===== Filtrar analista por tienda (CON DATOS REALES) =====
 async function filtrarAnalistaPorTienda(a, tiendaNombre) {
   vistaActual.tiendaFiltro = tiendaNombre;
   
@@ -701,9 +700,7 @@ async function filtrarAnalistaPorTienda(a, tiendaNombre) {
   if (aFiltrado.error || aFiltrado.filtroActivo === false) {
     document.querySelectorAll('[data-tienda]').forEach(el => {
       el.classList.remove('filtrado');
-      if (el.dataset.tienda === tiendaNombre) {
-        el.classList.add('filtrado');
-      }
+      if (el.dataset.tienda === tiendaNombre) el.classList.add('filtrado');
     });
     const info = document.getElementById('filtroInfo');
     const nombreSpan = document.getElementById('filtroNombre');
@@ -716,12 +713,8 @@ async function filtrarAnalistaPorTienda(a, tiendaNombre) {
     return;
   }
 
-  // Calcular promedio por día para la tienda filtrada
-  // Usamos los días activos del analista (global) como aproximación
-  const diasActivos = a.diasActivos || 1;
-  const promedioPorDiaFiltrado = aFiltrado.codigosContados / diasActivos;
+  const promedioPorDia = aFiltrado.promedioCodigosPorDia || (aFiltrado.codigosContados / (aFiltrado.diasActivos || 1));
 
-  // Actualizar valores con datos filtrados
   const codigosEl = document.getElementById('analistaCodigos');
   const piezasEl = document.getElementById('analistaPiezas');
   const okEl = document.getElementById('analistaOk');
@@ -732,7 +725,7 @@ async function filtrarAnalistaPorTienda(a, tiendaNombre) {
   if (piezasEl) piezasEl.textContent = fmt(aFiltrado.piezasContadas);
   if (okEl) okEl.textContent = fmt(aFiltrado.conteosOk);
   if (difEl) difEl.textContent = fmt(aFiltrado.conteosDiferencia);
-  if (promedioEl) promedioEl.textContent = promedioPorDiaFiltrado.toFixed(2);
+  if (promedioEl) promedioEl.textContent = promedioPorDia.toFixed(2);
   
   if (chartRef) {
     chartRef.data.datasets[0].data = [aFiltrado.conteosOk, aFiltrado.conteosDiferencia];
@@ -741,15 +734,13 @@ async function filtrarAnalistaPorTienda(a, tiendaNombre) {
   
   document.querySelectorAll('[data-tienda]').forEach(el => {
     el.classList.remove('filtrado');
-    if (el.dataset.tienda === tiendaNombre) {
-      el.classList.add('filtrado');
-    }
+    if (el.dataset.tienda === tiendaNombre) el.classList.add('filtrado');
   });
   
   const info = document.getElementById('filtroInfo');
   const nombreSpan = document.getElementById('filtroNombre');
   if (info && nombreSpan) {
-    nombreSpan.textContent = tiendaNombre + ` (${fmt(aFiltrado.codigosContados)} códigos, ${promedioPorDiaFiltrado.toFixed(2)}/día)`;
+    nombreSpan.textContent = tiendaNombre + ` (${fmt(aFiltrado.codigosContados)} códigos, ${promedioPorDia.toFixed(2)}/día)`;
     info.classList.add('visible');
   }
   
@@ -777,9 +768,7 @@ function resetFiltroAnalista(a, datosGlobales) {
     chartRef.update();
   }
   
-  document.querySelectorAll('[data-tienda]').forEach(el => {
-    el.classList.remove('filtrado');
-  });
+  document.querySelectorAll('[data-tienda]').forEach(el => el.classList.remove('filtrado'));
   
   const info = document.getElementById('filtroInfo');
   if (info) info.classList.remove('visible');
@@ -788,7 +777,6 @@ function resetFiltroAnalista(a, datosGlobales) {
   if (btnReset) btnReset.style.display = 'none';
 }
 
-// ===== FILTROS =====
 function actualizarFiltros() {
   const selT = $('selTienda');
   const selA = $('selAnalista');
@@ -855,7 +843,6 @@ async function loadResumen() {
   }
 }
 
-// ===== EVENTOS =====
 $('selTienda').addEventListener('change', async e => {
   if (e.target.value) {
     $('selAnalista').value = '';
@@ -882,7 +869,6 @@ $('btnClear').addEventListener('click', async () => {
   await renderVistaGeneral();
 });
 
-// ===== INIT =====
 (async function init(){
   try {
     await cargarModeloCompleto();
