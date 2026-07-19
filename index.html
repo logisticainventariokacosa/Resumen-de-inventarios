@@ -141,16 +141,18 @@
   .tag:hover{background:var(--steel);color:#fff;border-color:var(--steel);}
   .tag .actual{color:var(--green);font-weight:700;margin-left:4px;}
   .tag .actual::before{content:'● ';}
+  .tag.filtrado{background:var(--steel);color:#fff;border-color:var(--steel);}
 
   .empty-state{text-align:center;padding:30px 10px;color:var(--muted);font-size:14px;}
-  .loading-state{text-align:center;padding:40px 10px;}
-  .spinner{display:inline-block;width:36px;height:36px;border:4px solid var(--line);border-top-color:var(--steel);border-radius:50%;animation:spin .7s linear infinite;}
+  
+  .loading-state{text-align:center;padding:60px 20px;}
+  .spinner{display:inline-block;width:40px;height:40px;border:4px solid var(--line);border-top-color:var(--steel);border-radius:50%;animation:spin .7s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg);}}
-  .loading-state .text{margin-top:12px;color:var(--muted);font-size:13px;font-family:var(--mono);}
+  .loading-state .text{margin-top:16px;color:var(--muted);font-size:14px;font-family:var(--mono);}
+  .loading-state .subtext{margin-top:6px;color:var(--muted);font-size:12px;opacity:.7;}
 
   canvas{max-height:260px;}
 
-  /* ===== Vista apilada (tienda + analista debajo) ===== */
   .detail-stack{display:flex;flex-direction:column;gap:20px;}
   .detail-stack .card.tienda-card{border-left:4px solid var(--amber);}
   .detail-stack .card.analista-card{border-left:4px solid var(--green);}
@@ -162,6 +164,16 @@
     transition:all .2s;margin-top:12px;
   }
   .btn-back-bottom:hover{background:var(--navy-2);}
+
+  .filtro-info{
+    margin-top:10px;padding:8px 12px;
+    background:rgba(45,110,142,.08);
+    border-radius:8px;
+    font-size:13px;color:var(--steel);
+    font-weight:600;
+    display:none;
+  }
+  .filtro-info.visible{display:block;}
 </style>
 </head>
 <body>
@@ -203,19 +215,24 @@
   </div>
 
   <div id="content">
-    <div class="loading-state"><div class="spinner"></div><div class="text">Cargando datos desde Google Sheets…</div></div>
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <div class="text">Cargando datos desde Google Sheets…</div>
+      <div class="subtext">Esto puede tomar unos segundos</div>
+    </div>
   </div>
 
 </div>
 
 <script>
-const API_URL = 'https://script.google.com/macros/s/AKfycbyj2o46o0q1r5B2QW0GwGGTZMWs_B5w2W7qs9eZAutXAu7NhiuTdaLo1IOSmFpfUfcl/exec';
+// ⚠️ NUEVA URL DE IMPLEMENTACIÓN
+const API_URL = 'https://script.google.com/macros/s/AKfycby3oH1T2AAZYq5bLjqH1Y_i93LBoFn5I8C0-9ytqws3L_RQ6c4elnHvCK_huEpVP9oyqA/exec';
 
 const $ = id => document.getElementById(id);
 let chartRef = null;
-let chartRef2 = null; // Para gráfico secundario (analista filtrado por tienda)
+let chartRef2 = null;
 let modeloGlobal = null;
-let vistaActual = { tipo: 'general', nombre: null, analistaDesplegado: null };
+let vistaActual = { tipo: 'general', nombre: null, analistaDesplegado: null, tiendaFiltro: null };
 
 // ===== HELPERS =====
 function showLoading(){ $('statusDot').className='status-dot loading'; }
@@ -233,10 +250,22 @@ async function api(action, params) {
   return res.json();
 }
 
-async function fetchModelo() {
+// ===== CARGA OPTIMIZADA =====
+async function cargarModeloCompleto() {
   if (modeloGlobal) return modeloGlobal;
+  
   showLoading();
   try {
+    // Intentar cargar modelo completo en una sola llamada
+    const respuesta = await api('modelo_completo');
+    if (respuesta.error) {
+      throw new Error(respuesta.error);
+    }
+    modeloGlobal = respuesta;
+    return modeloGlobal;
+  } catch (err) {
+    console.error('Error cargando modelo completo:', err);
+    // Fallback: cargar por separado
     const [resumen, tiendas, analistas] = await Promise.all([
       api('resumen'),
       api('tiendas'),
@@ -249,23 +278,11 @@ async function fetchModelo() {
   }
 }
 
-async function fetchTienda(nombre) {
-  showLoading();
-  try { return await api('tienda', { nombre }); }
-  finally { hideLoading(); }
-}
-
-async function fetchAnalista(nombre) {
-  showLoading();
-  try { return await api('analista', { nombre }); }
-  finally { hideLoading(); }
-}
-
 // ===== RENDER =====
 async function renderVistaGeneral() {
   destroyChart();
-  vistaActual = { tipo: 'general', nombre: null, analistaDesplegado: null };
-  const m = await fetchModelo();
+  vistaActual = { tipo: 'general', nombre: null, analistaDesplegado: null, tiendaFiltro: null };
+  const m = await cargarModeloCompleto();
   $('content').innerHTML = `
     <div class="section-title">Vista general</div>
     <div class="card">
@@ -276,9 +293,19 @@ async function renderVistaGeneral() {
 
 async function renderTienda(nombre) {
   destroyChart();
-  vistaActual = { tipo: 'tienda', nombre: nombre, analistaDesplegado: null };
-  renderLoading('content');
-  const t = await fetchTienda(nombre);
+  vistaActual = { tipo: 'tienda', nombre: nombre, analistaDesplegado: null, tiendaFiltro: null };
+  $('content').innerHTML = `
+    <div class="loading-state"><div class="spinner"></div><div class="text">Cargando tienda…</div></div>`;
+  
+  // Intentar obtener del modelo cacheado
+  let t = null;
+  if (modeloGlobal && modeloGlobal.tiendas) {
+    t = modeloGlobal.tiendas.find(x => x.nombre === nombre);
+  }
+  if (!t) {
+    t = await api('tienda', { nombre });
+  }
+  
   if (t.error) {
     $('content').innerHTML = `<div class="empty-state">No se encontró la tienda.</div>`;
     actualizarFiltros();
@@ -306,7 +333,6 @@ async function renderTienda(nombre) {
 
   const avance = t.stockTotal > 0 ? (t.codigosContados / t.stockTotal) * 100 : 0;
   
-  // HTML base de la tienda
   let html = `
     <div class="section-title">Tienda · ${t.nombre}</div>
     <div class="grid-2" id="tiendaGrid">
@@ -347,54 +373,56 @@ async function renderTienda(nombre) {
 
   $('content').innerHTML = html;
 
-  // Gráfico de la tienda
+  // Gráfico
   const ctx = document.getElementById('chartTienda');
-  chartRef = new Chart(ctx, {
-    type: 'doughnut',
-    data: {
-      labels: ['Sin diferencia', 'Con diferencia', 'Por contar'],
-      datasets: [{
-        data: [t.itemsSinDiferencia, t.itemsConDiferencia, Math.max(t.stockTotal - t.codigosContados, 0)],
-        backgroundColor: ['#3E9C6E', '#D5573B', '#E3E7EE'],
-        borderWidth: 0
-      }]
-    },
-    options: {
-      plugins: {
-        legend: { position: 'bottom', labels: { usePointStyle: true, padding: 16, font: { size: 12 } } },
-        tooltip: { callbacks: { label: ctx => ctx.label + ': ' + fmt(ctx.raw) } }
+  if (ctx) {
+    chartRef = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Sin diferencia', 'Con diferencia', 'Por contar'],
+        datasets: [{
+          data: [t.itemsSinDiferencia, t.itemsConDiferencia, Math.max(t.stockTotal - t.codigosContados, 0)],
+          backgroundColor: ['#3E9C6E', '#D5573B', '#E3E7EE'],
+          borderWidth: 0
+        }]
       },
-      cutout: '60%'
-    },
-    plugins: [{
-      id: 'doughnutLabels',
-      afterDraw(chart) {
-        const ctx2 = chart.ctx;
-        const data = chart.data.datasets[0].data;
-        const total = data.reduce((a,b) => a + b, 0);
-        if (total === 0) return;
-        const centerX = chart.width / 2;
-        const centerY = chart.height / 2;
-        let angleStart = -Math.PI / 2;
-        data.forEach((value, i) => {
-          if (value === 0) return;
-          const angle = (value / total) * Math.PI * 2;
-          const midAngle = angleStart + angle / 2;
-          const radius = chart.getDatasetMeta(0).data[i].outerRadius * 0.7;
-          const x = centerX + Math.cos(midAngle) * radius;
-          const y = centerY + Math.sin(midAngle) * radius;
-          ctx2.fillStyle = '#16202E';
-          ctx2.font = 'bold 13px JetBrains Mono, monospace';
-          ctx2.textAlign = 'center';
-          ctx2.textBaseline = 'middle';
-          ctx2.fillText(fmt(value), x, y);
-          angleStart += angle;
-        });
-      }
-    }]
-  });
+      options: {
+        plugins: {
+          legend: { position: 'bottom', labels: { usePointStyle: true, padding: 16, font: { size: 12 } } },
+          tooltip: { callbacks: { label: ctx => ctx.label + ': ' + fmt(ctx.raw) } }
+        },
+        cutout: '60%'
+      },
+      plugins: [{
+        id: 'doughnutLabels',
+        afterDraw(chart) {
+          const ctx2 = chart.ctx;
+          const data = chart.data.datasets[0].data;
+          const total = data.reduce((a,b) => a + b, 0);
+          if (total === 0) return;
+          const centerX = chart.width / 2;
+          const centerY = chart.height / 2;
+          let angleStart = -Math.PI / 2;
+          data.forEach((value, i) => {
+            if (value === 0) return;
+            const angle = (value / total) * Math.PI * 2;
+            const midAngle = angleStart + angle / 2;
+            const radius = chart.getDatasetMeta(0).data[i].outerRadius * 0.7;
+            const x = centerX + Math.cos(midAngle) * radius;
+            const y = centerY + Math.sin(midAngle) * radius;
+            ctx2.fillStyle = '#16202E';
+            ctx2.font = 'bold 13px JetBrains Mono, monospace';
+            ctx2.textAlign = 'center';
+            ctx2.textBaseline = 'middle';
+            ctx2.fillText(fmt(value), x, y);
+            angleStart += angle;
+          });
+        }
+      }]
+    });
+  }
 
-  // Click en analistas → desplegar debajo
+  // Click en analistas → desplegar debajo con datos filtrados por tienda
   document.querySelectorAll('[data-analista]').forEach(el => {
     el.addEventListener('click', () => {
       const analista = el.dataset.analista;
@@ -406,12 +434,11 @@ async function renderTienda(nombre) {
   actualizarFiltros();
 }
 
-// ===== Desplegar analista dentro de la vista de tienda =====
+// ===== Desplegar analista dentro de la vista de tienda (CON FILTRO) =====
 async function desplegarAnalistaEnTienda(nombreAnalista, nombreTienda) {
   const container = document.getElementById('analistaExpandido');
   if (!container) return;
 
-  // Si ya está desplegado el mismo analista, lo ocultamos
   if (vistaActual.analistaDesplegado === nombreAnalista) {
     container.innerHTML = '';
     vistaActual.analistaDesplegado = null;
@@ -419,18 +446,33 @@ async function desplegarAnalistaEnTienda(nombreAnalista, nombreTienda) {
   }
 
   vistaActual.analistaDesplegado = nombreAnalista;
-  container.innerHTML = `<div class="loading-state"><div class="spinner"></div><div class="text">Cargando datos de ${nombreAnalista}…</div></div>`;
+  container.innerHTML = `<div class="loading-state"><div class="spinner"></div><div class="text">Cargando datos de ${nombreAnalista} en ${nombreTienda}…</div></div>`;
 
-  const a = await fetchAnalista(nombreAnalista);
+  // 🔥 NUEVO: Llamar al API con filtro de tienda
+  const a = await api('analista', { nombre: nombreAnalista, tienda: nombreTienda });
   if (a.error) {
     container.innerHTML = `<div class="empty-state">No se encontró el analista.</div>`;
     return;
   }
 
-  // Buscar los datos específicos de esta tienda (si el API los tuviera)
-  // Como el API actual no da datos por tienda, mostramos los globales pero contextualizados
-  const tiendaInfo = a.tiendas.find(t => t.nombre === nombreTienda);
-  const esActual = tiendaInfo ? tiendaInfo.actual : false;
+  // Si el filtro no encontró datos para esa tienda, mostrar un mensaje
+  if (a.filtroActivo === false) {
+    container.innerHTML = `
+      <div class="card analista-card">
+        <div class="detail-header">
+          <h2 style="font-size:17px;">👤 ${a.nombre}</h2>
+          <span class="badge off">Sin datos en ${nombreTienda}</span>
+        </div>
+        <p class="empty-state">Este analista no ha contado en ${nombreTienda}.</p>
+        <div style="text-align:right;margin-top:8px;">
+          <button class="btn-back-bottom" onclick="cerrarAnalistaDesplegado()">Cerrar</button>
+        </div>
+      </div>`;
+    return;
+  }
+
+  // Datos filtrados correctamente
+  const esActual = a.tiendaFiltro ? true : false;
 
   container.innerHTML = `
     <div class="card analista-card">
@@ -457,7 +499,6 @@ async function desplegarAnalistaEnTienda(nombreAnalista, nombreTienda) {
     </div>
   `;
 
-  // Gráfico del analista (datos globales, pero contextualizados)
   const ctx2 = document.getElementById('chartAnalistaTienda');
   if (ctx2) {
     chartRef2 = new Chart(ctx2, {
@@ -498,7 +539,6 @@ async function desplegarAnalistaEnTienda(nombreAnalista, nombreTienda) {
     });
   }
 
-  // Scroll al analista desplegado
   container.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
@@ -511,9 +551,19 @@ function cerrarAnalistaDesplegado() {
 // ===== RENDER ANALISTA (vista principal) =====
 async function renderAnalista(nombre) {
   destroyChart();
-  vistaActual = { tipo: 'analista', nombre: nombre, tiendaFiltro: null };
-  renderLoading('content');
-  const a = await fetchAnalista(nombre);
+  vistaActual = { tipo: 'analista', nombre: nombre, analistaDesplegado: null, tiendaFiltro: null };
+  $('content').innerHTML = `
+    <div class="loading-state"><div class="spinner"></div><div class="text">Cargando analista…</div></div>`;
+
+  // Cargar datos globales del analista
+  let a = null;
+  if (modeloGlobal && modeloGlobal.analistas) {
+    a = modeloGlobal.analistas.find(x => x.nombre === nombre);
+  }
+  if (!a) {
+    a = await api('analista', { nombre });
+  }
+
   if (a.error) {
     $('content').innerHTML = `<div class="empty-state">No se encontró el analista.</div>`;
     actualizarFiltros();
@@ -537,9 +587,6 @@ async function renderAnalista(nombre) {
     return;
   }
 
-  // Estado: sin filtro de tienda inicialmente
-  vistaActual.tiendaFiltro = null;
-
   let html = `
     <div class="section-title">Analista · ${a.nombre}</div>
     <div class="grid-2">
@@ -557,12 +604,12 @@ async function renderAnalista(nombre) {
           <div class="item"><div class="k">Tienda actual asignada</div><div class="v">${a.tiendaAsignada || 'No asignada'}</div></div>
         </div>
         <div style="margin-top:12px;font-size:12px;color:var(--muted);font-weight:600;">Tiendas donde ha contado (click para filtrar):</div>
-        <div class="tag-list">${a.tiendas.map(t => `
+        <div class="tag-list" id="tiendasAnalista">${a.tiendas.map(t => `
           <span class="tag clickable" data-tienda="${t.nombre}" data-analista="${a.nombre}">
             ${t.nombre}${t.actual ? ' <span class="actual">Actual</span>' : ''}
           </span>
         `).join('')}</div>
-        <div id="filtroInfo" style="margin-top:10px;font-size:12px;color:var(--muted);"></div>
+        <div class="filtro-info" id="filtroInfo">📌 Mostrando datos filtrados por: <span id="filtroNombre"></span></div>
       </div>
       <div class="card">
         <canvas id="chartAnalista"></canvas>
@@ -574,9 +621,8 @@ async function renderAnalista(nombre) {
   `;
 
   $('content').innerHTML = html;
-  actualizarFiltros();
 
-  // Gráfico inicial (global)
+  // Gráfico global
   const ctx = document.getElementById('chartAnalista');
   if (ctx) {
     chartRef = new Chart(ctx, {
@@ -620,7 +666,7 @@ async function renderAnalista(nombre) {
     });
   }
 
-  // Click en tiendas → FILTRAR datos del analista
+  // Click en tiendas → FILTRAR CON EL BACKEND
   document.querySelectorAll('[data-tienda]').forEach(el => {
     el.addEventListener('click', () => {
       const tienda = el.dataset.tienda;
@@ -628,36 +674,83 @@ async function renderAnalista(nombre) {
     });
   });
 
-  // Botón reset
   const btnReset = document.getElementById('btnResetAnalista');
   if (btnReset) {
     btnReset.addEventListener('click', () => {
       vistaActual.tiendaFiltro = null;
-      actualizarDatosAnalista(a, null);
-      btnReset.style.display = 'none';
-      document.getElementById('filtroInfo').textContent = '';
+      resetFiltroAnalista(a);
     });
   }
+
+  actualizarFiltros();
 }
 
-// ===== Filtrar analista por tienda =====
-function filtrarAnalistaPorTienda(a, tiendaNombre) {
+// ===== Filtrar analista por tienda (CON DATOS REALES) =====
+async function filtrarAnalistaPorTienda(a, tiendaNombre) {
   vistaActual.tiendaFiltro = tiendaNombre;
-  actualizarDatosAnalista(a, tiendaNombre);
+  
+  // 🔥 Llamar al API con filtro de tienda
+  const aFiltrado = await api('analista', { nombre: a.nombre, tienda: tiendaNombre });
+  
+  if (aFiltrado.error || aFiltrado.filtroActivo === false) {
+    // No hay datos para esta tienda
+    document.querySelectorAll('[data-tienda]').forEach(el => {
+      el.classList.remove('filtrado');
+      if (el.dataset.tienda === tiendaNombre) {
+        el.classList.add('filtrado');
+      }
+    });
+    const info = document.getElementById('filtroInfo');
+    const nombreSpan = document.getElementById('filtroNombre');
+    if (info && nombreSpan) {
+      nombreSpan.textContent = tiendaNombre + ' (sin datos)';
+      info.classList.add('visible');
+    }
+    const btnReset = document.getElementById('btnResetAnalista');
+    if (btnReset) btnReset.style.display = 'inline-block';
+    return;
+  }
+
+  // Actualizar valores con datos filtrados
+  const codigosEl = document.getElementById('analistaCodigos');
+  const piezasEl = document.getElementById('analistaPiezas');
+  const okDifEl = document.getElementById('analistaOkDif');
+  
+  if (codigosEl) codigosEl.textContent = fmt(aFiltrado.codigosContados);
+  if (piezasEl) piezasEl.textContent = fmt(aFiltrado.piezasContadas);
+  if (okDifEl) okDifEl.textContent = `${fmt(aFiltrado.conteosOk)} / ${fmt(aFiltrado.conteosDiferencia)}`;
+  
+  // Actualizar gráfico
+  if (chartRef) {
+    chartRef.data.datasets[0].data = [aFiltrado.conteosOk, aFiltrado.conteosDiferencia];
+    chartRef.update();
+  }
+  
+  // Resaltar el tag seleccionado
+  document.querySelectorAll('[data-tienda]').forEach(el => {
+    el.classList.remove('filtrado');
+    if (el.dataset.tienda === tiendaNombre) {
+      el.classList.add('filtrado');
+    }
+  });
+  
+  // Mostrar info de filtro
+  const info = document.getElementById('filtroInfo');
+  const nombreSpan = document.getElementById('filtroNombre');
+  if (info && nombreSpan) {
+    nombreSpan.textContent = tiendaNombre + ` (${fmt(aFiltrado.codigosContados)} códigos)`;
+    info.classList.add('visible');
+  }
   
   // Mostrar botón reset
   const btnReset = document.getElementById('btnResetAnalista');
   if (btnReset) btnReset.style.display = 'inline-block';
-  
-  const info = document.getElementById('filtroInfo');
-  if (info) info.textContent = `📌 Mostrando datos filtrados por: ${tiendaNombre}`;
 }
 
-// ===== Actualizar datos del analista (con o sin filtro) =====
-function actualizarDatosAnalista(a, tiendaNombre) {
-  // Como el API no da datos por tienda, solo actualizamos la UI mostrando el contexto
-  // En una versión futura, el API podría devolver datos filtrados
+function resetFiltroAnalista(a) {
+  vistaActual.tiendaFiltro = null;
   
+  // Restaurar valores globales
   const codigosEl = document.getElementById('analistaCodigos');
   const piezasEl = document.getElementById('analistaPiezas');
   const okDifEl = document.getElementById('analistaOkDif');
@@ -666,25 +759,20 @@ function actualizarDatosAnalista(a, tiendaNombre) {
   if (piezasEl) piezasEl.textContent = fmt(a.piezasContadas);
   if (okDifEl) okDifEl.textContent = `${fmt(a.conteosOk)} / ${fmt(a.conteosDiferencia)}`;
   
-  // Actualizar gráfico
   if (chartRef) {
     chartRef.data.datasets[0].data = [a.conteosOk, a.conteosDiferencia];
     chartRef.update();
   }
   
-  // Resaltar la tienda seleccionada en los tags
   document.querySelectorAll('[data-tienda]').forEach(el => {
-    const t = el.dataset.tienda;
-    if (tiendaNombre && t === tiendaNombre) {
-      el.style.borderColor = 'var(--steel)';
-      el.style.background = 'var(--steel)';
-      el.style.color = '#fff';
-    } else {
-      el.style.borderColor = 'var(--line)';
-      el.style.background = 'var(--bg)';
-      el.style.color = 'var(--navy-2)';
-    }
+    el.classList.remove('filtrado');
   });
+  
+  const info = document.getElementById('filtroInfo');
+  if (info) info.classList.remove('visible');
+  
+  const btnReset = document.getElementById('btnResetAnalista');
+  if (btnReset) btnReset.style.display = 'none';
 }
 
 // ===== FILTROS =====
@@ -704,36 +792,54 @@ function actualizarFiltros() {
 }
 
 async function loadFiltros() {
-  const m = await fetchModelo();
+  const m = await cargarModeloCompleto();
   const selT = $('selTienda'), selA = $('selAnalista');
   selT.innerHTML = '<option value="">Todas / vista general</option>';
   selA.innerHTML = '<option value="">Todos / vista general</option>';
   
-  m.tiendas.forEach(t => {
-    const opt = document.createElement('option');
-    opt.value = t.nombre;
-    opt.textContent = t.nombre + (t.activa ? '' : ' (inactiva)');
-    selT.appendChild(opt);
-  });
+  if (m.tiendas) {
+    m.tiendas.forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = t.nombre;
+      opt.textContent = t.nombre + (t.activa ? '' : ' (inactiva)');
+      selT.appendChild(opt);
+    });
+  }
   
-  m.analistas.forEach(a => {
-    const opt = document.createElement('option');
-    opt.value = a.nombre;
-    opt.textContent = a.nombre + (a.activo ? '' : ' (sin inventario activo)');
-    selA.appendChild(opt);
-  });
+  if (m.analistas) {
+    m.analistas.forEach(a => {
+      const opt = document.createElement('option');
+      opt.value = a.nombre;
+      opt.textContent = a.nombre + (a.activo ? '' : ' (sin inventario activo)');
+      selA.appendChild(opt);
+    });
+  }
 }
 
 async function loadResumen() {
-  const m = await fetchModelo();
-  const r = m.resumen;
-  $('kTiendas').textContent = fmt(r.tiendasActivas);
-  $('kAnalistas').textContent = fmt(r.analistasActivos);
-  $('kCodigos').textContent = fmt(r.codigosContados);
-  $('kPiezas').textContent = fmt(r.piezasContadas);
-  $('kDif').textContent = fmt(r.itemsConDiferencia);
-  $('kOk').textContent = fmt(r.itemsSinDiferencia);
-  $('lastUpdate').textContent = 'Actualizado ' + new Date(r.generadoEn).toLocaleTimeString('es-VE');
+  const m = await cargarModeloCompleto();
+  let r = m.resumen;
+  if (!r && m.tiendas) {
+    const activas = m.tiendas.filter(t => t.activa);
+    r = {
+      tiendasActivas: activas.length,
+      analistasActivos: m.analistas ? m.analistas.filter(a => a.activo).length : 0,
+      codigosContados: activas.reduce((s, t) => s + t.codigosContados, 0),
+      piezasContadas: activas.reduce((s, t) => s + t.piezasContadas, 0),
+      itemsConDiferencia: activas.reduce((s, t) => s + t.itemsConDiferencia, 0),
+      itemsSinDiferencia: activas.reduce((s, t) => s + t.itemsSinDiferencia, 0),
+      generadoEn: new Date().toISOString()
+    };
+  }
+  if (r) {
+    $('kTiendas').textContent = fmt(r.tiendasActivas);
+    $('kAnalistas').textContent = fmt(r.analistasActivos);
+    $('kCodigos').textContent = fmt(r.codigosContados);
+    $('kPiezas').textContent = fmt(r.piezasContadas);
+    $('kDif').textContent = fmt(r.itemsConDiferencia);
+    $('kOk').textContent = fmt(r.itemsSinDiferencia);
+    $('lastUpdate').textContent = 'Actualizado ' + new Date(r.generadoEn).toLocaleTimeString('es-VE');
+  }
 }
 
 // ===== EVENTOS =====
@@ -765,8 +871,18 @@ $('btnClear').addEventListener('click', async () => {
 
 // ===== INIT =====
 (async function init(){
-  await Promise.all([loadResumen(), loadFiltros()]);
-  await renderVistaGeneral();
+  try {
+    await cargarModeloCompleto();
+    await Promise.all([loadResumen(), loadFiltros()]);
+    await renderVistaGeneral();
+  } catch (err) {
+    console.error('Error en init:', err);
+    $('content').innerHTML = `
+      <div class="empty-state">
+        ⚠️ Error al cargar los datos. Verifica tu conexión o recarga la página.
+        <br><small>${err.message}</small>
+      </div>`;
+  }
   hideLoading();
 })();
 </script>
