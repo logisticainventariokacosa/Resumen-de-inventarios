@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KACOSA · Centro de Control de Inventarios</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --navy:#12213B;
+    --navy-2:#1B3358;
+    --steel:#2D6E8E;
+    --steel-light:#4C93B5;
+    --amber:#E8963C;
+    --green:#3E9C6E;
+    --red:#D5573B;
+    --bg:#F3F5F8;
+    --card:#FFFFFF;
+    --line:#E3E7EE;
+    --text:#16202E;
+    --muted:#6B7686;
+    --radius:14px;
+    --mono:'JetBrains Mono',monospace;
+    --sans:'Manrope',sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:var(--sans);background:var(--bg);color:var(--text);}
+  a{color:inherit;cursor:pointer;}
+
+  /* ===== Topbar ===== */
+  .topbar{
+    background:linear-gradient(135deg,var(--navy) 0%,var(--navy-2) 100%);
+    color:#fff;
+    padding:18px 24px;
+    display:flex;align-items:center;justify-content:space-between;
+    flex-wrap:wrap;gap:12px;
+    position:sticky;top:0;z-index:20;
+    box-shadow:0 4px 18px rgba(18,33,59,.25);
+  }
+  .brand{display:flex;align-items:center;gap:14px;}
+  .brand .logo{
+    width:40px;height:40px;border-radius:10px;
+    background:var(--amber);
+    display:flex;align-items:center;justify-content:center;
+    font-weight:900;font-size:18px;color:var(--navy);
+    letter-spacing:-0.5px;font-family:var(--mono);
+    box-shadow:0 2px 8px rgba(232,150,60,.3);
+  }
+  .brand h1{font-size:17px;margin:0;font-weight:800;letter-spacing:.2px;}
+  .brand span{display:block;font-size:11px;color:#B9C6DA;font-weight:500;letter-spacing:.4px;text-transform:uppercase;}
+  .status-pill{
+    font-family:var(--mono);font-size:11px;color:#B9C6DA;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);
+    padding:6px 12px;border-radius:20px;display:flex;align-items:center;gap:6px;
+  }
+  .status-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px rgba(62,156,110,.25);}
+  .status-dot.loading{background:var(--amber);box-shadow:0 0 0 3px rgba(232,150,60,.25);animation:pulse 1s infinite;}
+
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+
+  /* ===== Layout ===== */
+  .wrap{max-width:1180px;margin:0 auto;padding:22px 20px 60px;}
+
+  /* ===== KPI grid ===== */
+  .kpi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:26px;}
+  @media(max-width:980px){.kpi-grid{grid-template-columns:repeat(3,1fr);}}
+  @media(max-width:600px){.kpi-grid{grid-template-columns:repeat(2,1fr);}}
+  .kpi{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px 14px;position:relative;overflow:hidden;
+  }
+  .kpi::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--steel);}
+  .kpi.amber::before{background:var(--amber);}
+  .kpi.green::before{background:var(--green);}
+  .kpi .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600;}
+  .kpi .value{font-family:var(--mono);font-size:26px;font-weight:700;margin-top:6px;color:var(--navy);}
+
+  /* ===== Filter bar ===== */
+  .filters{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px;margin-bottom:22px;display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;
+  }
+  .field{display:flex;flex-direction:column;gap:6px;min-width:220px;flex:1;}
+  .field label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;}
+  select,input[type=text]{
+    font-family:var(--sans);font-size:14px;padding:10px 12px;border-radius:9px;
+    border:1.5px solid var(--line);background:#fff;color:var(--text);
+  }
+  select:focus,input:focus{outline:none;border-color:var(--steel);}
+  .btn-clear{
+    background:var(--bg);border:1.5px solid var(--line);color:var(--muted);
+    padding:10px 16px;border-radius:9px;font-weight:600;font-size:13px;cursor:pointer;
+    transition:all .2s;
+  }
+  .btn-clear:hover{border-color:var(--red);color:var(--red);}
+
+  /* ===== Section ===== */
+  .section-title{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--navy-2);margin:28px 0 12px;display:flex;align-items:center;gap:8px;}
+  .section-title::after{content:'';flex:1;height:1px;background:var(--line);}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px;}
+  .grid-2{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;}
+  @media(max-width:800px){.grid-2{grid-template-columns:1fr;}}
+
+  .detail-header{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:16px;}
+  .detail-header h2{margin:0;font-size:20px;font-weight:800;color:var(--navy);}
+  .badge{font-family:var(--mono);font-size:11px;padding:4px 10px;border-radius:20px;font-weight:700;}
+  .badge.on{background:rgba(62,156,110,.12);color:var(--green);}
+  .badge.off{background:rgba(213,87,59,.12);color:var(--red);}
+
+  .stat-list{display:grid;grid-template-columns:1fr 1fr;gap:12px 20px;margin-top:8px;}
+  .stat-list .item{border-bottom:1px dashed var(--line);padding-bottom:8px;}
+  .stat-list .k{font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:600;}
+  .stat-list .v{font-family:var(--mono);font-size:16px;font-weight:700;color:var(--navy);margin-top:2px;}
+
+  .progress-wrap{margin:10px 0 4px;}
+  .progress-track{height:22px;border-radius:6px;background:var(--line);overflow:hidden;position:relative;}
+  .progress-fill{height:100%;background:linear-gradient(90deg,var(--steel),var(--steel-light));transition:width .6s ease;}
+  .progress-label{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.3);font-family:var(--mono);}
+
+  .clickable{transition:all .15s;cursor:pointer;}
+  .clickable:hover{opacity:.7;}
+
+  .tag-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+  .tag{
+    font-size:12px;background:var(--bg);border:1px solid var(--line);
+    padding:4px 10px;border-radius:20px;color:var(--navy-2);font-weight:600;
+    transition:all .2s;cursor:pointer;
+  }
+  .tag:hover{background:var(--steel);color:#fff;border-color:var(--steel);}
+  .tag .actual{color:var(--green);font-weight:700;margin-left:4px;}
+  .tag .actual::before{content:'● ';}
+
+  .empty-state{text-align:center;padding:30px 10px;color:var(--muted);font-size:14px;}
+  .loading-state{text-align:center;padding:40px 10px;}
+  .spinner{display:inline-block;width:36px;height:36px;border:4px solid var(--line);border-top-color:var(--steel);border-radius:50%;animation:spin .7s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .loading-state .text{margin-top:12px;color:var(--muted);font-size:13px;font-family:var(--mono);}
+
+  canvas{max-height:260px;}
+
+  /* ===== Scroll suave ===== */
+  .smooth-scroll{scroll-margin-top:80px;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="logo">K</div>
+    <div>
+      <h1>KACOSA</h1>
+      <span>Centro de Control de Inventarios</span>
+    </div>
+  </div>
+  <div class="status-pill"><span class="status-dot" id="statusDot"></span><span id="lastUpdate">Cargando...</span></div>
+</div>
+
+<div class="wrap">
+
+  <div class="kpi-grid" id="kpiGrid">
+    <div class="kpi"><div class="label">Tiendas activas</div><div class="value" id="kTiendas">–</div></div>
+    <div class="kpi"><div class="label">Analistas activos</div><div class="value" id="kAnalistas">–</div></div>
+    <div class="kpi"><div class="label">Códigos contados</div><div class="value" id="kCodigos">–</div></div>
+    <div class="kpi"><div class="label">Piezas contadas</div><div class="value" id="kPiezas">–</div></div>
+    <div class="kpi amber"><div class="label">Con diferencia</div><div class="value" id="kDif">–</div></div>
+    <div class="kpi green"><div class="label">Sin diferencia</div><div class="value" id="kOk">–</div></div>
+  </div>
+
+  <div class="filters">
+    <div class="field">
+      <label for="selTienda">Filtrar por tienda</label>
+      <select id="selTienda"><option value="">Todas / vista general</option></select>
+    </div>
+    <div class="field">
+      <label for="selAnalista">Filtrar por analista</label>
+      <select id="selAnalista"><option value="">Todos / vista general</option></select>
+    </div>
+    <button class="btn-clear" id="btnClear">Limpiar filtros</button>
+  </div>
+
+  <div id="content">
+    <div class="loading-state"><div class="spinner"></div><div class="text">Cargando datos desde Google Sheets…</div></div>
+  </div>
+
+</div>
+
+<script>
+/* ⚠️ Reemplaza con la URL /exec de tu implementación de Apps Script */
+const API_URL = 'https://script.google.com/macros/s/AKfycbyj2o46o0q1r5B2QW0GwGGTZMWs_B5w2W7qs9eZAutXAu7NhiuTdaLo1IOSmFpfUfcl/exec';
+
+const $ = id => document.getElementById(id);
+let chartRef = null;
+let modeloGlobal = null;
+let estadoActual = { tipo: 'general', nombre: null };
+
+// ===== HELPERS =====
+function showLoading(){ $('statusDot').className='status-dot loading'; }
+function hideLoading(){ $('statusDot').className='status-dot'; }
+function fmt(n){ return new Intl.NumberFormat('es-VE').format(Math.round(n || 0)); }
+function fmtDate(iso){ if(!iso)return '—'; const d=new Date(iso); if(isNaN(d))return iso; return d.toLocaleDateString('es-VE'); }
+function destroyChart(){ if(chartRef){ chartRef.destroy(); chartRef=null; } }
+
+// ===== API =====
+async function api(action, params) {
+  const url = new URL(API_URL);
+  url.searchParams.set('action', action);
+  if (params) Object.keys(params).forEach(k => url.searchParams.set(k, params[k]));
+  const res = await fetch(url);
+  return res.json();
+}
+
+async function fetchModelo() {
+  if (modeloGlobal) return modeloGlobal;
+  showLoading();
+  try {
+    // Cargamos todo en paralelo
+    const [resumen, tiendas, analistas] = await Promise.all([
+      api('resumen'),
+      api('tiendas'),
+      api('analistas')
+    ]);
+    modeloGlobal = { resumen, tiendas, analistas };
+    return modeloGlobal;
+  } finally {
+    hideLoading();
+  }
+}
+
+async function fetchTienda(nombre) {
+  showLoading();
+  try { return await api('tienda', { nombre }); }
+  finally { hideLoading(); }
+}
+
+async function fetchAnalista(nombre) {
+  showLoading();
+  try { return await api('analista', { nombre }); }
+  finally { hideLoading(); }
+}
+
+// ===== RENDER =====
+async function renderVistaGeneral() {
+  destroyChart();
+  const m = await fetchModelo();
+  $('content').innerHTML = `
+    <div class="section-title">Vista general</div>
+    <div class="card">
+      <p class="empty-state">Selecciona una tienda o un analista arriba para ver el detalle de su avance.</p>
+    </div>`;
+}
+
+function renderLoading(containerId) {
+  $(containerId).innerHTML = `
+    <div class="loading-state"><div class="spinner"></div><div class="text">Cargando detalle…</div></div>`;
+}
+
+async function renderTienda(nombre) {
+  destroyChart();
+  renderLoading('content');
+  const t = await fetchTienda(nombre);
+  if (t.error) {
+    $('content').innerHTML = `<div class="empty-state">No se encontró la tienda.</div>`;
+    return;
+  }
+  estadoActual = { tipo: 'tienda', nombre: t.nombre };
+
+  if (!t.activa) {
+    $('content').innerHTML = `
+      <div class="section-title">Tienda · ${t.nombre}</div>
+      <div class="card">
+        <div class="detail-header">
+          <h2>${t.nombre}</h2>
+          <span class="badge off">Sin inventario activo</span>
+        </div>
+        <div class="stat-list">
+          <div class="item"><div class="k">Supervisor</div><div class="v">${t.supervisor}</div></div>
+          <div class="item"><div class="k">Fecha último inventario (inicio)</div><div class="v">${fmtDate(t.fechaApertura)}</div></div>
+          <div class="item"><div class="k">Fecha de cierre</div><div class="v">${fmtDate(t.fechaCierre)}</div></div>
+          <div class="item"><div class="k">Duración del último inventario</div><div class="v">${fmt(t.diasTranscurridos)} días</div></div>
+        </div>
+      </div>`;
+    return;
+  }
+
+  const avance = t.stockTotal > 0 ? (t.codigosContados / t.stockTotal) * 100 : 0;
+  $('content').innerHTML = `
+    <div class="section-title">Tienda · ${t.nombre}</div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="detail-header">
+          <h2>${t.nombre}</h2>
+          <span class="badge on">Inventario activo</span>
+        </div>
+        <div class="progress-wrap">
+          <div class="progress-track">
+            <div class="progress-fill" style="width:${Math.min(avance,100)}%"></div>
+            <div class="progress-label">${fmt(t.codigosContados)} de ${fmt(t.stockTotal)} códigos contados (${avance.toFixed(1)}%)</div>
+          </div>
+        </div>
+        <div class="stat-list">
+          <div class="item"><div class="k">Supervisor</div><div class="v">${t.supervisor}</div></div>
+          <div class="item"><div class="k">Días transcurridos</div><div class="v">${fmt(t.diasTranscurridos)} días</div></div>
+          <div class="item"><div class="k">Fecha de inicio</div><div class="v">${fmtDate(t.fechaApertura)}</div></div>
+          <div class="item"><div class="k">Piezas contadas</div><div class="v">${fmt(t.piezasContadas)}</div></div>
+          <div class="item"><div class="k">Ítems con diferencia</div><div class="v">${fmt(t.itemsConDiferencia)}</div></div>
+          <div class="item"><div class="k">Ítems sin diferencia</div><div class="v">${fmt(t.itemsSinDiferencia)}</div></div>
+        </div>
+        <div style="margin-top:12px;font-size:12px;color:var(--muted);font-weight:600;">Analistas que han contado aquí:</div>
+        <div class="tag-list">${t.analistas.map(a => `
+          <span class="tag clickable" data-analista="${a.nombre}" data-tienda="${t.nombre}">
+            ${a.nombre}${a.actual ? ' <span class="actual">Actual</span>' : ''}
+          </span>
+        `).join('')}</div>
+      </div>
+      <div class="card">
+        <canvas id="chartTienda"></canvas>
+      </div>
+    </div>`;
+
+  // Chart
+  const ctx = document.getElementById('chartTienda');
+  chartRef = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Sin diferencia', 'Con diferencia', 'Por contar'],
+      datasets: [{
+        data: [t.itemsSinDiferencia, t.itemsConDiferencia, Math.max(t.stockTotal - t.codigosContados, 0)],
+        backgroundColor: ['#3E9C6E', '#D5573B', '#E3E7EE']
+      }]
+    },
+    options: {
+      plugins: {
+        legend: { position: 'bottom', labels: { usePointStyle: true, padding: 16 } },
+        tooltip: { callbacks: { label: ctx => ctx.label + ': ' + fmt(ctx.raw) } }
+      },
+      cutout: '60%'
+    }
+  });
+
+  // Click en analistas
+  document.querySelectorAll('[data-analista]').forEach(el => {
+    el.addEventListener('click', () => {
+      const analista = el.dataset.analista;
+      const tienda = el.dataset.tienda;
+      renderAnalista(analista, tienda);
+    });
+  });
+}
+
+async function renderAnalista(nombre, tiendaFiltro) {
+  destroyChart();
+  renderLoading('content');
+  const a = await fetchAnalista(nombre);
+  if (a.error) {
+    $('content').innerHTML = `<div class="empty-state">No se encontró el analista.</div>`;
+    return;
+  }
+  estadoActual = { tipo: 'analista', nombre: a.nombre, tiendaFiltro: tiendaFiltro || null };
+
+  if (!a.activo) {
+    $('content').innerHTML = `
+      <div class="section-title">Analista · ${a.nombre}</div>
+      <div class="card">
+        <div class="detail-header">
+          <h2>${a.nombre}</h2>
+          <span class="badge off">Sin inventario activo</span>
+        </div>
+        <p class="empty-state">Este analista no está participando en ningún inventario activo actualmente.</p>
+        <div class="stat-list">
+          <div class="item"><div class="k">Tienda actual asignada</div><div class="v">${a.tiendaAsignada || 'No asignada'}</div></div>
+        </div>
+      </div>`;
+    return;
+  }
+
+  // Si hay filtro de tienda, mostrar solo los datos de esa tienda
+  const tiendasMostrar = tiendaFiltro ? a.tiendas.filter(t => t.nombre === tiendaFiltro) : a.tiendas;
+  const codigosMostrar = tiendaFiltro ? a.codigosContados : a.codigosContados; // El API no da por tienda, pero mostramos igual
+  const piezasMostrar = tiendaFiltro ? a.piezasContadas : a.piezasContadas;
+
+  $('content').innerHTML = `
+    <div class="section-title">Analista · ${a.nombre}${tiendaFiltro ? ' en ' + tiendaFiltro : ''}</div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="detail-header">
+          <h2>${a.nombre}</h2>
+          <span class="badge on">Contando activamente</span>
+        </div>
+        <div class="stat-list">
+          <div class="item"><div class="k">Códigos contados</div><div class="v">${fmt(codigosMostrar)}</div></div>
+          <div class="item"><div class="k">Piezas contadas</div><div class="v">${fmt(piezasMostrar)}</div></div>
+          <div class="item"><div class="k">Promedio códigos / día</div><div class="v">${a.promedioCodigosPorDia}</div></div>
+          <div class="item"><div class="k">Promedio códigos / tienda</div><div class="v">${a.promedioCodigosPorTienda}</div></div>
+        </div>
+        <div style="margin-top:12px;font-size:12px;color:var(--muted);font-weight:600;">Tiendas donde ha contado:</div>
+        <div class="tag-list">${tiendasMostrar.map(t => `
+          <span class="tag clickable" data-tienda="${t.nombre}" data-analista="${a.nombre}">
+            ${t.nombre}${t.actual ? ' <span class="actual">Actual</span>' : ''}
+          </span>
+        `).join('')}</div>
+      </div>
+      <div class="card">
+        <canvas id="chartAnalista"></canvas>
+      </div>
+    </div>`;
+
+  // Chart con valores en las barras
+  const ctx = document.getElementById('chartAnalista');
+  chartRef = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['OK', 'Con diferencia'],
+      datasets: [{
+        data: [a.conteosOk, a.conteosDiferencia],
+        backgroundColor: ['#3E9C6E', '#D5573B']
+      }]
+    },
+    options: {
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ctx.label + ': ' + fmt(ctx.raw) } }
+      },
+      scales: { y: { beginAtZero: true, ticks: { callback: v => fmt(v) } } }
+    },
+    plugins: [{
+      id: 'barLabels',
+      afterDraw(chart) {
+        const ctx2 = chart.ctx;
+        chart.data.datasets.forEach((dataset, i) => {
+          const meta = chart.getDatasetMeta(i);
+          meta.data.forEach((bar, index) => {
+            const value = dataset.data[index];
+            const x = bar.x;
+            const y = bar.y - 10;
+            ctx2.fillStyle = '#16202E';
+            ctx2.font = 'bold 13px JetBrains Mono, monospace';
+            ctx2.textAlign = 'center';
+            ctx2.fillText(fmt(value), x, y);
+          });
+        });
+      }
+    }]
+  });
+
+  // Click en tiendas
+  document.querySelectorAll('[data-tienda]').forEach(el => {
+    el.addEventListener('click', () => {
+      const tienda = el.dataset.tienda;
+      renderTienda(tienda);
+    });
+  });
+}
+
+// ===== FILTROS =====
+async function loadFiltros() {
+  const m = await fetchModelo();
+  const selT = $('selTienda'), selA = $('selAnalista');
+  selT.innerHTML = '<option value="">Todas / vista general</option>';
+  selA.innerHTML = '<option value="">Todos / vista general</option>';
+  
+  m.tiendas.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t.nombre;
+    opt.textContent = t.nombre + (t.activa ? '' : ' (inactiva)');
+    selT.appendChild(opt);
+  });
+  
+  m.analistas.forEach(a => {
+    const opt = document.createElement('option');
+    opt.value = a.nombre;
+    opt.textContent = a.nombre + (a.activo ? '' : ' (sin inventario activo)');
+    selA.appendChild(opt);
+  });
+}
+
+async function loadResumen() {
+  const m = await fetchModelo();
+  const r = m.resumen;
+  $('kTiendas').textContent = fmt(r.tiendasActivas);
+  $('kAnalistas').textContent = fmt(r.analistasActivos);
+  $('kCodigos').textContent = fmt(r.codigosContados);
+  $('kPiezas').textContent = fmt(r.piezasContadas);
+  $('kDif').textContent = fmt(r.itemsConDiferencia);
+  $('kOk').textContent = fmt(r.itemsSinDiferencia);
+  $('lastUpdate').textContent = 'Actualizado ' + new Date(r.generadoEn).toLocaleTimeString('es-VE');
+}
+
+// ===== EVENTOS =====
+$('selTienda').addEventListener('change', async e => {
+  if (e.target.value) {
+    $('selAnalista').value = '';
+    await renderTienda(e.target.value);
+    document.querySelector('.wrap').scrollIntoView({ behavior: 'smooth' });
+  } else {
+    await renderVistaGeneral();
+  }
+});
+
+$('selAnalista').addEventListener('change', async e => {
+  if (e.target.value) {
+    $('selTienda').value = '';
+    await renderAnalista(e.target.value);
+    document.querySelector('.wrap').scrollIntoView({ behavior: 'smooth' });
+  } else {
+    await renderVistaGeneral();
+  }
+});
+
+$('btnClear').addEventListener('click', async () => {
+  $('selTienda').value = '';
+  $('selAnalista').value = '';
+  await renderVistaGeneral();
+});
+
+// ===== INIT =====
+(async function init(){
+  await Promise.all([loadResumen(), loadFiltros()]);
+  await renderVistaGeneral();
+  hideLoading();
+})();
+</script>
+</body>
+</html>
