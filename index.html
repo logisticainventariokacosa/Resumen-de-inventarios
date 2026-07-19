@@ -151,7 +151,7 @@
   .loading-state .text{margin-top:16px;color:var(--muted);font-size:14px;font-family:var(--mono);}
   .loading-state .subtext{margin-top:6px;color:var(--muted);font-size:12px;opacity:.7;}
 
-  canvas{max-height:260px;}
+  canvas{max-height:260px;width:100% !important;}
 
   .detail-stack{display:flex;flex-direction:column;gap:20px;}
   .detail-stack .card.tienda-card{border-left:4px solid var(--amber);}
@@ -174,6 +174,11 @@
     display:none;
   }
   .filtro-info.visible{display:block;}
+
+  /* ===== Vista de analista expandido en tienda ===== */
+  .analista-expandido-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media(max-width:700px){.analista-expandido-grid{grid-template-columns:1fr;}}
+  .analista-expandido-grid .stat-list{grid-template-columns:1fr 1fr;}
 </style>
 </head>
 <body>
@@ -225,7 +230,6 @@
 </div>
 
 <script>
-// ⚠️ NUEVA URL DE IMPLEMENTACIÓN
 const API_URL = 'https://script.google.com/macros/s/AKfycby3oH1T2AAZYq5bLjqH1Y_i93LBoFn5I8C0-9ytqws3L_RQ6c4elnHvCK_huEpVP9oyqA/exec';
 
 const $ = id => document.getElementById(id);
@@ -256,7 +260,6 @@ async function cargarModeloCompleto() {
   
   showLoading();
   try {
-    // Intentar cargar modelo completo en una sola llamada
     const respuesta = await api('modelo_completo');
     if (respuesta.error) {
       throw new Error(respuesta.error);
@@ -265,7 +268,6 @@ async function cargarModeloCompleto() {
     return modeloGlobal;
   } catch (err) {
     console.error('Error cargando modelo completo:', err);
-    // Fallback: cargar por separado
     const [resumen, tiendas, analistas] = await Promise.all([
       api('resumen'),
       api('tiendas'),
@@ -297,7 +299,6 @@ async function renderTienda(nombre) {
   $('content').innerHTML = `
     <div class="loading-state"><div class="spinner"></div><div class="text">Cargando tienda…</div></div>`;
   
-  // Intentar obtener del modelo cacheado
   let t = null;
   if (modeloGlobal && modeloGlobal.tiendas) {
     t = modeloGlobal.tiendas.find(x => x.nombre === nombre);
@@ -373,7 +374,6 @@ async function renderTienda(nombre) {
 
   $('content').innerHTML = html;
 
-  // Gráfico
   const ctx = document.getElementById('chartTienda');
   if (ctx) {
     chartRef = new Chart(ctx, {
@@ -422,7 +422,6 @@ async function renderTienda(nombre) {
     });
   }
 
-  // Click en analistas → desplegar debajo con datos filtrados por tienda
   document.querySelectorAll('[data-analista]').forEach(el => {
     el.addEventListener('click', () => {
       const analista = el.dataset.analista;
@@ -448,14 +447,12 @@ async function desplegarAnalistaEnTienda(nombreAnalista, nombreTienda) {
   vistaActual.analistaDesplegado = nombreAnalista;
   container.innerHTML = `<div class="loading-state"><div class="spinner"></div><div class="text">Cargando datos de ${nombreAnalista} en ${nombreTienda}…</div></div>`;
 
-  // 🔥 NUEVO: Llamar al API con filtro de tienda
   const a = await api('analista', { nombre: nombreAnalista, tienda: nombreTienda });
   if (a.error) {
     container.innerHTML = `<div class="empty-state">No se encontró el analista.</div>`;
     return;
   }
 
-  // Si el filtro no encontró datos para esa tienda, mostrar un mensaje
   if (a.filtroActivo === false) {
     container.innerHTML = `
       <div class="card analista-card">
@@ -471,22 +468,25 @@ async function desplegarAnalistaEnTienda(nombreAnalista, nombreTienda) {
     return;
   }
 
-  // Datos filtrados correctamente
-  const esActual = a.tiendaFiltro ? true : false;
+  // Calcular promedio por día para esta tienda (usando los días activos del analista en general)
+  // Como el backend no devuelve días por tienda, usamos los días globales como aproximación
+  const diasActivos = a.diasActivos || 1;
+  const promedioPorDia = a.codigosContados / diasActivos;
 
   container.innerHTML = `
     <div class="card analista-card">
       <div class="detail-header">
         <h2 style="font-size:17px;">👤 ${a.nombre} · en ${nombreTienda}</h2>
-        <span class="badge on">${esActual ? 'Actual' : 'Ha contado aquí'}</span>
+        <span class="badge on">${a.tiendaFiltro ? 'Actual' : 'Ha contado aquí'}</span>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="analista-expandido-grid">
         <div>
-          <div class="stat-list" style="grid-template-columns:1fr 1fr;">
+          <div class="stat-list">
             <div class="item"><div class="k">Códigos contados</div><div class="v">${fmt(a.codigosContados)}</div></div>
             <div class="item"><div class="k">Piezas contadas</div><div class="v">${fmt(a.piezasContadas)}</div></div>
-            <div class="item"><div class="k">OK / Con diferencia</div><div class="v">${fmt(a.conteosOk)} / ${fmt(a.conteosDiferencia)}</div></div>
-            <div class="item"><div class="k">Promedio / día</div><div class="v">${a.promedioCodigosPorDia}</div></div>
+            <div class="item"><div class="k">Sin diferencia (OK)</div><div class="v" style="color:var(--green);">${fmt(a.conteosOk)}</div></div>
+            <div class="item"><div class="k">Con diferencia</div><div class="v" style="color:var(--red);">${fmt(a.conteosDiferencia)}</div></div>
+            <div class="item"><div class="k">Promedio códigos / día</div><div class="v">${promedioPorDia.toFixed(2)}</div></div>
           </div>
         </div>
         <div>
@@ -555,7 +555,6 @@ async function renderAnalista(nombre) {
   $('content').innerHTML = `
     <div class="loading-state"><div class="spinner"></div><div class="text">Cargando analista…</div></div>`;
 
-  // Cargar datos globales del analista
   let a = null;
   if (modeloGlobal && modeloGlobal.analistas) {
     a = modeloGlobal.analistas.find(x => x.nombre === nombre);
@@ -587,6 +586,15 @@ async function renderAnalista(nombre) {
     return;
   }
 
+  // Guardar los datos globales para reset
+  const datosGlobales = {
+    codigosContados: a.codigosContados,
+    piezasContadas: a.piezasContadas,
+    conteosOk: a.conteosOk,
+    conteosDiferencia: a.conteosDiferencia,
+    promedioCodigosPorDia: a.promedioCodigosPorDia
+  };
+
   let html = `
     <div class="section-title">Analista · ${a.nombre}</div>
     <div class="grid-2">
@@ -598,9 +606,10 @@ async function renderAnalista(nombre) {
         <div class="stat-list">
           <div class="item"><div class="k">Códigos contados</div><div class="v" id="analistaCodigos">${fmt(a.codigosContados)}</div></div>
           <div class="item"><div class="k">Piezas contadas</div><div class="v" id="analistaPiezas">${fmt(a.piezasContadas)}</div></div>
-          <div class="item"><div class="k">OK / Con diferencia</div><div class="v" id="analistaOkDif">${fmt(a.conteosOk)} / ${fmt(a.conteosDiferencia)}</div></div>
-          <div class="item"><div class="k">Promedio códigos / día</div><div class="v">${a.promedioCodigosPorDia}</div></div>
-          <div class="item"><div class="k">Promedio códigos / tienda</div><div class="v">${a.promedioCodigosPorTienda}</div></div>
+          <div class="item"><div class="k">Sin diferencia (OK)</div><div class="v" id="analistaOk" style="color:var(--green);">${fmt(a.conteosOk)}</div></div>
+          <div class="item"><div class="k">Con diferencia</div><div class="v" id="analistaDif" style="color:var(--red);">${fmt(a.conteosDiferencia)}</div></div>
+          <div class="item"><div class="k">Promedio códigos / día</div><div class="v" id="analistaPromedio">${a.promedioCodigosPorDia.toFixed(2)}</div></div>
+          <div class="item"><div class="k">Promedio códigos / tienda</div><div class="v">${a.promedioCodigosPorTienda.toFixed(2)}</div></div>
           <div class="item"><div class="k">Tienda actual asignada</div><div class="v">${a.tiendaAsignada || 'No asignada'}</div></div>
         </div>
         <div style="margin-top:12px;font-size:12px;color:var(--muted);font-weight:600;">Tiendas donde ha contado (click para filtrar):</div>
@@ -622,7 +631,6 @@ async function renderAnalista(nombre) {
 
   $('content').innerHTML = html;
 
-  // Gráfico global
   const ctx = document.getElementById('chartAnalista');
   if (ctx) {
     chartRef = new Chart(ctx, {
@@ -666,7 +674,6 @@ async function renderAnalista(nombre) {
     });
   }
 
-  // Click en tiendas → FILTRAR CON EL BACKEND
   document.querySelectorAll('[data-tienda]').forEach(el => {
     el.addEventListener('click', () => {
       const tienda = el.dataset.tienda;
@@ -678,7 +685,7 @@ async function renderAnalista(nombre) {
   if (btnReset) {
     btnReset.addEventListener('click', () => {
       vistaActual.tiendaFiltro = null;
-      resetFiltroAnalista(a);
+      resetFiltroAnalista(a, datosGlobales);
     });
   }
 
@@ -689,11 +696,9 @@ async function renderAnalista(nombre) {
 async function filtrarAnalistaPorTienda(a, tiendaNombre) {
   vistaActual.tiendaFiltro = tiendaNombre;
   
-  // 🔥 Llamar al API con filtro de tienda
   const aFiltrado = await api('analista', { nombre: a.nombre, tienda: tiendaNombre });
   
   if (aFiltrado.error || aFiltrado.filtroActivo === false) {
-    // No hay datos para esta tienda
     document.querySelectorAll('[data-tienda]').forEach(el => {
       el.classList.remove('filtrado');
       if (el.dataset.tienda === tiendaNombre) {
@@ -711,22 +716,29 @@ async function filtrarAnalistaPorTienda(a, tiendaNombre) {
     return;
   }
 
+  // Calcular promedio por día para la tienda filtrada
+  // Usamos los días activos del analista (global) como aproximación
+  const diasActivos = a.diasActivos || 1;
+  const promedioPorDiaFiltrado = aFiltrado.codigosContados / diasActivos;
+
   // Actualizar valores con datos filtrados
   const codigosEl = document.getElementById('analistaCodigos');
   const piezasEl = document.getElementById('analistaPiezas');
-  const okDifEl = document.getElementById('analistaOkDif');
+  const okEl = document.getElementById('analistaOk');
+  const difEl = document.getElementById('analistaDif');
+  const promedioEl = document.getElementById('analistaPromedio');
   
   if (codigosEl) codigosEl.textContent = fmt(aFiltrado.codigosContados);
   if (piezasEl) piezasEl.textContent = fmt(aFiltrado.piezasContadas);
-  if (okDifEl) okDifEl.textContent = `${fmt(aFiltrado.conteosOk)} / ${fmt(aFiltrado.conteosDiferencia)}`;
+  if (okEl) okEl.textContent = fmt(aFiltrado.conteosOk);
+  if (difEl) difEl.textContent = fmt(aFiltrado.conteosDiferencia);
+  if (promedioEl) promedioEl.textContent = promedioPorDiaFiltrado.toFixed(2);
   
-  // Actualizar gráfico
   if (chartRef) {
     chartRef.data.datasets[0].data = [aFiltrado.conteosOk, aFiltrado.conteosDiferencia];
     chartRef.update();
   }
   
-  // Resaltar el tag seleccionado
   document.querySelectorAll('[data-tienda]').forEach(el => {
     el.classList.remove('filtrado');
     if (el.dataset.tienda === tiendaNombre) {
@@ -734,33 +746,34 @@ async function filtrarAnalistaPorTienda(a, tiendaNombre) {
     }
   });
   
-  // Mostrar info de filtro
   const info = document.getElementById('filtroInfo');
   const nombreSpan = document.getElementById('filtroNombre');
   if (info && nombreSpan) {
-    nombreSpan.textContent = tiendaNombre + ` (${fmt(aFiltrado.codigosContados)} códigos)`;
+    nombreSpan.textContent = tiendaNombre + ` (${fmt(aFiltrado.codigosContados)} códigos, ${promedioPorDiaFiltrado.toFixed(2)}/día)`;
     info.classList.add('visible');
   }
   
-  // Mostrar botón reset
   const btnReset = document.getElementById('btnResetAnalista');
   if (btnReset) btnReset.style.display = 'inline-block';
 }
 
-function resetFiltroAnalista(a) {
+function resetFiltroAnalista(a, datosGlobales) {
   vistaActual.tiendaFiltro = null;
   
-  // Restaurar valores globales
   const codigosEl = document.getElementById('analistaCodigos');
   const piezasEl = document.getElementById('analistaPiezas');
-  const okDifEl = document.getElementById('analistaOkDif');
+  const okEl = document.getElementById('analistaOk');
+  const difEl = document.getElementById('analistaDif');
+  const promedioEl = document.getElementById('analistaPromedio');
   
-  if (codigosEl) codigosEl.textContent = fmt(a.codigosContados);
-  if (piezasEl) piezasEl.textContent = fmt(a.piezasContadas);
-  if (okDifEl) okDifEl.textContent = `${fmt(a.conteosOk)} / ${fmt(a.conteosDiferencia)}`;
+  if (codigosEl) codigosEl.textContent = fmt(datosGlobales.codigosContados);
+  if (piezasEl) piezasEl.textContent = fmt(datosGlobales.piezasContadas);
+  if (okEl) okEl.textContent = fmt(datosGlobales.conteosOk);
+  if (difEl) difEl.textContent = fmt(datosGlobales.conteosDiferencia);
+  if (promedioEl) promedioEl.textContent = datosGlobales.promedioCodigosPorDia.toFixed(2);
   
   if (chartRef) {
-    chartRef.data.datasets[0].data = [a.conteosOk, a.conteosDiferencia];
+    chartRef.data.datasets[0].data = [datosGlobales.conteosOk, datosGlobales.conteosDiferencia];
     chartRef.update();
   }
   
