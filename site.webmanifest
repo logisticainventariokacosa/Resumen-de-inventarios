@@ -1,6 +1,6 @@
 {
   "name": "KACOSA Control",
-  "short_name": "RESUMEN DE INVENTARIOS",
+  "short_name": "Dashboard de Inventarios",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#ffffff",
