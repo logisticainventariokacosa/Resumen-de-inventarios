@@ -242,17 +242,25 @@
     transition:background .15s;
   }
   .modal-close:hover{background:rgba(255,255,255,.35);}
-  .modal-body{padding:8px 18px 16px;overflow-y:auto;}
+  .modal-body{padding:0 18px 16px;overflow-y:auto;}
+  .modal-columns{
+    display:grid;grid-template-columns:1.15fr 1fr;gap:10px;
+    padding:2px 0 8px;margin-bottom:2px;
+    border-bottom:1.5px solid var(--line);
+    font-size:10px;text-transform:uppercase;letter-spacing:.4px;font-weight:800;color:var(--muted);
+    position:sticky;top:0;background:var(--card);
+  }
+  .modal-columns .col-right{text-align:right;}
   .modal-row{
-    display:flex;justify-content:space-between;align-items:center;gap:12px;
+    display:grid;grid-template-columns:1.15fr 1fr;gap:10px;align-items:center;
     padding:11px 0;border-bottom:1px dashed var(--line);
   }
   .modal-row:last-child{border-bottom:none;}
-  .modal-row .nombre{font-size:13.5px;font-weight:700;color:var(--navy);min-width:0;overflow-wrap:break-word;}
-  .modal-row .valor{font-family:var(--mono);font-weight:800;font-size:13.5px;white-space:nowrap;color:var(--text);flex-shrink:0;}
+  .modal-row .nombre{font-size:12.5px;font-weight:700;color:var(--navy);min-width:0;overflow-wrap:break-word;line-height:1.3;}
+  .modal-row .valor{font-family:var(--mono);font-weight:800;font-size:12.5px;color:var(--text);text-align:right;overflow-wrap:break-word;line-height:1.3;}
   .modal-count{
-    font-family:var(--mono);font-size:11px;color:var(--muted);
-    padding:10px 18px 0;flex-shrink:0;
+    font-family:var(--mono);font-size:10.5px;color:rgba(255,255,255,.85);
+    margin-top:2px;
   }
 </style>
 </head>
@@ -310,12 +318,17 @@
     <div class="modal-header" id="modalHeader">
       <div>
         <h3 id="modalTitulo">Título</h3>
-        <div class="sub" id="modalSub"></div>
+        <div class="modal-count" id="modalCount"></div>
       </div>
       <button class="modal-close" id="modalCloseBtn" aria-label="Cerrar">✕</button>
     </div>
-    <div class="modal-count" id="modalCount"></div>
-    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-body">
+      <div class="modal-columns">
+        <span id="modalColIzq">Nombre</span>
+        <span class="col-right" id="modalColDer">Valor</span>
+      </div>
+      <div id="modalRows"></div>
+    </div>
   </div>
 </div>
 
@@ -367,12 +380,12 @@ async function cargarModeloCompleto() {
 // ==================== MODAL DE TARJETAS KPI ====================
 
 const KPI_CONFIG = {
-  tiendas: { titulo: 'Tiendas activas', color: 'steel', columna: 'Fecha de inicio' },
-  analistas: { titulo: 'Analistas activos', color: 'indigo', columna: 'Tienda asignada' },
-  codigos: { titulo: 'Códigos contados', color: 'teal', columna: 'Códigos', campo: 'codigosContados' },
-  piezas: { titulo: 'Piezas contadas', color: 'slate', columna: 'Piezas', campo: 'piezasContadas' },
-  condif: { titulo: 'Códigos con diferencia', color: 'amber', columna: 'Con diferencia', campo: 'itemsConDiferencia' },
-  sindif: { titulo: 'Códigos sin diferencia', color: 'green', columna: 'Sin diferencia', campo: 'itemsSinDiferencia' }
+  tiendas: { titulo: 'Tiendas activas', color: 'steel', colIzq: 'Tienda', columna: 'Fecha de inicio' },
+  analistas: { titulo: 'Analistas activos', color: 'indigo', colIzq: 'Analista', columna: 'Tienda asignada' },
+  codigos: { titulo: 'Códigos contados', color: 'teal', colIzq: 'Tienda', columna: 'Códigos contados', campo: 'codigosContados' },
+  piezas: { titulo: 'Piezas contadas', color: 'slate', colIzq: 'Tienda', columna: 'Piezas contadas', campo: 'piezasContadas' },
+  condif: { titulo: 'Códigos con diferencia', color: 'amber', colIzq: 'Tienda', columna: 'Con diferencia', campo: 'itemsConDiferencia' },
+  sindif: { titulo: 'Códigos sin diferencia', color: 'green', colIzq: 'Tienda', columna: 'Sin diferencia', campo: 'itemsSinDiferencia' }
 };
 
 function abrirModalKpi(tipo) {
@@ -401,13 +414,14 @@ function abrirModalKpi(tipo) {
 
   $('modalHeader').className = 'modal-header ' + cfg.color;
   $('modalTitulo').textContent = cfg.titulo;
-  $('modalSub').textContent = cfg.columna;
   $('modalCount').textContent = filas.length + (filas.length === 1 ? ' registro' : ' registros');
+  $('modalColIzq').textContent = cfg.colIzq;
+  $('modalColDer').textContent = cfg.columna;
 
   if (!filas.length) {
-    $('modalBody').innerHTML = '<div class="empty-state">Sin datos disponibles.</div>';
+    $('modalRows').innerHTML = '<div class="empty-state">Sin datos disponibles.</div>';
   } else {
-    $('modalBody').innerHTML = filas.map(f => `
+    $('modalRows').innerHTML = filas.map(f => `
       <div class="modal-row">
         <span class="nombre">${f.nombre}</span>
         <span class="valor">${f.valor}</span>
