@@ -65,6 +65,45 @@
 
   @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
 
+  /* ===== BOTÓN REFRESCAR ===== */
+  .btn-refresh {
+    background:rgba(255,255,255,.1);
+    border:1px solid rgba(255,255,255,.2);
+    color:#fff;
+    width:40px;
+    height:40px;
+    border-radius:50%;
+    cursor:pointer;
+    font-size:18px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition:all 0.3s ease;
+    font-family:var(--sans);
+    flex-shrink:0;
+  }
+  .btn-refresh:hover {
+    background:rgba(255,255,255,.2);
+    transform:rotate(45deg) scale(1.05);
+  }
+  .btn-refresh:active {
+    transform:rotate(90deg) scale(0.95);
+  }
+  .btn-refresh.spinning {
+    animation:spinRefresh 0.8s ease;
+  }
+  @keyframes spinRefresh {
+    0% { transform:rotate(0deg); }
+    100% { transform:rotate(360deg); }
+  }
+  @media(max-width:600px){
+    .btn-refresh {
+      width:36px;
+      height:36px;
+      font-size:16px;
+    }
+  }
+
   .wrap{max-width:1180px;margin:0 auto;padding:22px 20px 60px;}
 
   .kpi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:26px;}
@@ -268,13 +307,21 @@
 
 <div class="topbar">
   <div class="brand">
-  <div class="logo">DI</div>
-  <div>
-    <h1>Dashboard de Inventarios</h1>
-    <span>Centro de Control de Inventarios Kacosa</span>
+    <div class="logo">DI</div>
+    <div>
+      <h1>Dashboard de Inventarios</h1>
+      <span>Centro de Control de Inventarios Kacosa</span>
+    </div>
   </div>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <button class="btn-refresh" id="btnRefresh" title="Refrescar datos" aria-label="Refrescar datos">
+      🔄
+    </button>
+    <div class="status-pill">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="lastUpdate">Cargando...</span>
+    </div>
   </div>
-  <div class="status-pill"><span class="status-dot" id="statusDot"></span><span id="lastUpdate">Cargando...</span></div>
 </div>
 
 <div class="wrap">
@@ -1053,6 +1100,53 @@ $('btnClear').addEventListener('click', async () => {
   $('selTienda').value = '';
   $('selAnalista').value = '';
   await renderVistaGeneral();
+});
+
+// ==================== BOTÓN REFRESCAR ====================
+
+$('btnRefresh').addEventListener('click', async function() {
+  // Girar el ícono
+  this.classList.add('spinning');
+  
+  // Limpiar caché local
+  modeloGlobal = null;
+  
+  // Mostrar estado de carga
+  showLoading();
+  $('lastUpdate').textContent = 'Refrescando...';
+  
+  try {
+    // Recargar todos los datos
+    await cargarModeloCompleto();
+    
+    // Actualizar resumen y filtros
+    await Promise.all([loadResumen(), loadFiltros()]);
+    
+    // Re-renderizar la vista actual
+    if (vistaActual.tipo === 'tienda') {
+      await renderTienda(vistaActual.nombre);
+    } else if (vistaActual.tipo === 'analista') {
+      await renderAnalista(vistaActual.nombre);
+    } else {
+      await renderVistaGeneral();
+    }
+    
+    $('lastUpdate').textContent = '✅ Actualizado ' + new Date().toLocaleTimeString('es-VE');
+  } catch (err) {
+    console.error('Error al refrescar:', err);
+    $('lastUpdate').textContent = '⚠️ Error al refrescar';
+    $('content').innerHTML = `
+      <div class="empty-state">
+        ⚠️ Error al refrescar los datos. Intenta de nuevo.
+        <br><small>${err.message}</small>
+      </div>`;
+  } finally {
+    hideLoading();
+    // Quitar la animación después de un momento
+    setTimeout(() => {
+      this.classList.remove('spinning');
+    }, 900);
+  }
 });
 
 (async function init(){
