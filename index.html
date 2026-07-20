@@ -32,7 +32,15 @@
     --sans:'Manrope',sans-serif;
   }
   *{box-sizing:border-box;}
-  body{margin:0;font-family:var(--sans);background:var(--bg);color:var(--text);}
+  body{
+    margin:0;
+    font-family:var(--sans);
+    background:var(--bg);
+    color:var(--text);
+    display:flex;
+    flex-direction:column;
+    min-height:100vh;
+  }
   a{color:inherit;cursor:pointer;}
 
   .topbar{
@@ -104,7 +112,13 @@
     }
   }
 
-  .wrap{max-width:1180px;margin:0 auto;padding:22px 20px 60px;}
+  .wrap{
+    max-width:1180px;
+    margin:0 auto;
+    padding:22px 20px 40px;
+    flex:1;
+    width:100%;
+  }
 
   .kpi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:26px;}
   @media(max-width:980px){.kpi-grid{grid-template-columns:repeat(3,1fr);}}
@@ -301,6 +315,184 @@
     font-family:var(--mono);font-size:10.5px;color:rgba(255,255,255,.85);
     margin-top:2px;
   }
+
+  /* ===== PIE DE PÁGINA - FULL WIDTH (fuera del contenedor) ===== */
+  .footer {
+    background: linear-gradient(135deg, #12213B 0%, #1B3358 100%);
+    padding: 10px 24px;
+    margin-top: 0px;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    border-top: 2px solid rgba(232, 150, 60, 0.15);
+    box-shadow: 0 -4px 20px rgba(18, 33, 59, 0.15);
+    box-sizing: border-box;
+  }
+
+  .footer-left {
+    display: flex;
+    flex-direction: column;
+    gap: 0px;
+  }
+
+  .footer-left .main {
+    font-size: 12px;
+    font-weight: 700;
+    color: #FFFFFF;
+    letter-spacing: 0.3px;
+  }
+
+  .footer-left .sub {
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.45);
+    font-weight: 400;
+    letter-spacing: 0.4px;
+  }
+
+  .footer-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0px;
+    text-align: center;
+  }
+
+  .footer-center .copy {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.55);
+    font-weight: 500;
+    letter-spacing: 0.3px;
+  }
+
+  .footer-center .copy span {
+    color: #E8963C;
+    font-weight: 600;
+  }
+
+  .footer-center .dev {
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.35);
+    font-weight: 400;
+    letter-spacing: 0.2px;
+  }
+
+  .footer-center .dev span {
+    color: rgba(255, 255, 255, 0.65);
+    font-weight: 500;
+  }
+
+  .footer-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    color: #FFFFFF;
+    background: rgba(255, 255, 255, 0.06);
+    padding: 4px 14px 4px 10px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .footer-right .icon {
+    font-size: 13px;
+    line-height: 1;
+  }
+
+  .footer-right .datetime {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    letter-spacing: 0.3px;
+  }
+
+  .footer-right .date {
+    color: rgba(255, 255, 255, 0.6);
+    font-weight: 500;
+    font-size: 11px;
+  }
+
+  .footer-right .date-sep {
+    color: rgba(255, 255, 255, 0.2);
+    font-weight: 300;
+  }
+
+  .footer-right .time {
+    letter-spacing: 0.3px;
+    min-width: 72px;
+    text-align: center;
+  }
+
+  .footer-right .seconds {
+    color: #E8963C;
+    font-weight: 800;
+    animation: pulseSeconds 1s infinite;
+  }
+
+  .footer-right .ampm {
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.4);
+    font-weight: 400;
+    margin-left: 1px;
+  }
+
+  @keyframes pulseSeconds {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* Responsive Footer */
+  @media (max-width: 700px) {
+    .footer {
+      padding: 10px 16px;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    
+    .footer-left {
+      align-items: center;
+      text-align: center;
+    }
+    
+    .footer-left .main {
+      font-size: 11px;
+    }
+    
+    .footer-left .sub {
+      font-size: 8.5px;
+    }
+    
+    .footer-center .copy {
+      font-size: 9px;
+    }
+    
+    .footer-center .dev {
+      font-size: 8.5px;
+    }
+    
+    .footer-right {
+      font-size: 11px;
+      padding: 3px 10px 3px 8px;
+      gap: 6px;
+    }
+    
+    .footer-right .icon {
+      font-size: 12px;
+    }
+    
+    .footer-right .date {
+      font-size: 10px;
+    }
+    
+    .footer-right .ampm {
+      font-size: 8px;
+    }
+  }
 </style>
 </head>
 <body>
@@ -357,6 +549,31 @@
     </div>
   </div>
 
+</div>
+
+<!-- ===== PIE DE PÁGINA - FUERA DEL WRAP (FULL WIDTH) ===== -->
+<div class="footer">
+  <div class="footer-left">
+    <span class="main">Dashboard de Inventarios</span>
+    <span class="sub">Centro de Control de Inventarios Kacosa</span>
+  </div>
+  
+  <div class="footer-center">
+    <span class="copy">© 2026 — <span>Logística &amp; Inventario</span></span>
+    <span class="dev">Desarrollado por <span>Derwin Rojas</span></span>
+  </div>
+  
+  <div class="footer-right">
+    <span class="icon">🕐</span>
+    <span class="datetime">
+      <span class="date" id="clockDate">00/00/0000</span>
+      <span class="date-sep">|</span>
+      <span class="time">
+        <span id="clockHours">00</span>:<span id="clockMinutes">00</span>:<span class="seconds" id="clockSeconds">00</span>
+      </span>
+      <span class="ampm" id="clockAmPm">a.m.</span>
+    </span>
+  </div>
 </div>
 
 <!-- ===== MODAL KPI (detalle al tocar una tarjeta) ===== -->
@@ -1105,24 +1322,15 @@ $('btnClear').addEventListener('click', async () => {
 // ==================== BOTÓN REFRESCAR ====================
 
 $('btnRefresh').addEventListener('click', async function() {
-  // Girar el ícono
   this.classList.add('spinning');
-  
-  // Limpiar caché local
   modeloGlobal = null;
-  
-  // Mostrar estado de carga
   showLoading();
   $('lastUpdate').textContent = 'Refrescando...';
   
   try {
-    // Recargar todos los datos
     await cargarModeloCompleto();
-    
-    // Actualizar resumen y filtros
     await Promise.all([loadResumen(), loadFiltros()]);
     
-    // Re-renderizar la vista actual
     if (vistaActual.tipo === 'tienda') {
       await renderTienda(vistaActual.nombre);
     } else if (vistaActual.tipo === 'analista') {
@@ -1142,12 +1350,47 @@ $('btnRefresh').addEventListener('click', async function() {
       </div>`;
   } finally {
     hideLoading();
-    // Quitar la animación después de un momento
     setTimeout(() => {
       this.classList.remove('spinning');
     }, 900);
   }
 });
+
+// ==================== RELOJ Y FECHA EN TIEMPO REAL ====================
+
+function actualizarRelojYFecha() {
+  const ahora = new Date();
+  
+  const dia = String(ahora.getDate()).padStart(2, '0');
+  const mes = String(ahora.getMonth() + 1).padStart(2, '0');
+  const anio = ahora.getFullYear();
+  const fechaStr = dia + '/' + mes + '/' + anio;
+  
+  let horas = ahora.getHours();
+  const minutos = String(ahora.getMinutes()).padStart(2, '0');
+  const segundos = String(ahora.getSeconds()).padStart(2, '0');
+  const ampm = horas >= 12 ? 'p.m.' : 'a.m.';
+  
+  horas = horas % 12;
+  horas = horas ? horas : 12;
+  
+  const dateEl = document.getElementById('clockDate');
+  const hEl = document.getElementById('clockHours');
+  const mEl = document.getElementById('clockMinutes');
+  const sEl = document.getElementById('clockSeconds');
+  const ampmEl = document.getElementById('clockAmPm');
+  
+  if (dateEl) dateEl.textContent = fechaStr;
+  if (hEl) hEl.textContent = String(horas);
+  if (mEl) mEl.textContent = minutos;
+  if (sEl) sEl.textContent = segundos;
+  if (ampmEl) ampmEl.textContent = ampm;
+}
+
+actualizarRelojYFecha();
+setInterval(actualizarRelojYFecha, 1000);
+
+// ==================== INICIO ====================
 
 (async function init(){
   try {
