@@ -1,6 +1,6 @@
 {
   "name": "KACOSA Control",
-  "short_name": "LOGÍSTICA & INVENTARIOS",
+  "short_name": "RESUMEN DE INVENTARIOS",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#ffffff",
