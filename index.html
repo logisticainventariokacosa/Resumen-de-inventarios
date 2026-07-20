@@ -75,10 +75,22 @@
   .kpi.amber::before{background:var(--amber);}
   .kpi.green{background:linear-gradient(180deg,rgba(62,156,110,.07),var(--card) 55%);}
   .kpi.green::before{background:var(--green);}
+  .kpi.steel{background:linear-gradient(180deg,rgba(45,110,142,.08),var(--card) 55%);}
+  .kpi.steel::before{background:var(--steel);}
+  .kpi.indigo{background:linear-gradient(180deg,rgba(91,95,166,.08),var(--card) 55%);}
+  .kpi.indigo::before{background:#5B5FA6;}
+  .kpi.teal{background:linear-gradient(180deg,rgba(28,140,140,.08),var(--card) 55%);}
+  .kpi.teal::before{background:#1C8C8C;}
+  .kpi.slate{background:linear-gradient(180deg,rgba(90,105,135,.08),var(--card) 55%);}
+  .kpi.slate::before{background:#5A6987;}
   .kpi .label{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:700;line-height:1.3;min-height:26px;display:flex;align-items:flex-end;}
   .kpi .value{font-family:var(--mono);font-size:26px;font-weight:800;margin-top:8px;color:var(--navy);letter-spacing:-0.5px;}
   .kpi.amber .value{color:#B5691E;}
   .kpi.green .value{color:#227A4C;}
+  .kpi.steel .value{color:#1F5570;}
+  .kpi.indigo .value{color:#43447E;}
+  .kpi.teal .value{color:#146868;}
+  .kpi.slate .value{color:#3E4B63;}
 
   .filters{
     background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
@@ -201,10 +213,10 @@
 <div class="wrap">
 
   <div class="kpi-grid" id="kpiGrid">
-    <div class="kpi"><div class="label">Tiendas activas</div><div class="value" id="kTiendas">–</div></div>
-    <div class="kpi"><div class="label">Analistas activos</div><div class="value" id="kAnalistas">–</div></div>
-    <div class="kpi"><div class="label">Códigos contados</div><div class="value" id="kCodigos">–</div></div>
-    <div class="kpi"><div class="label">Piezas contadas</div><div class="value" id="kPiezas">–</div></div>
+    <div class="kpi steel"><div class="label">Tiendas activas</div><div class="value" id="kTiendas">–</div></div>
+    <div class="kpi indigo"><div class="label">Analistas activos</div><div class="value" id="kAnalistas">–</div></div>
+    <div class="kpi teal"><div class="label">Códigos contados</div><div class="value" id="kCodigos">–</div></div>
+    <div class="kpi slate"><div class="label">Piezas contadas</div><div class="value" id="kPiezas">–</div></div>
     <div class="kpi amber"><div class="label">Códigos con diferencia</div><div class="value" id="kDif">–</div></div>
     <div class="kpi green"><div class="label">Códigos sin diferencia</div><div class="value" id="kOk">–</div></div>
   </div>
