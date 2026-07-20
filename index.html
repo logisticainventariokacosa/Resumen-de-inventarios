@@ -74,8 +74,10 @@
     background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
     padding:16px 16px 14px;position:relative;overflow:hidden;
     transition:transform .15s, box-shadow .15s;
+    cursor:pointer;
   }
   .kpi:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(18,33,59,.08);}
+  .kpi:active{transform:translateY(0);}
   .kpi::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--steel);}
   .kpi.amber{background:linear-gradient(180deg,rgba(232,150,60,.07),var(--card) 55%);}
   .kpi.amber::before{background:var(--amber);}
@@ -97,6 +99,10 @@
   .kpi.indigo .value{color:#43447E;}
   .kpi.teal .value{color:#146868;}
   .kpi.slate .value{color:#3E4B63;}
+  .kpi .tap-hint{
+    position:absolute;top:10px;right:12px;font-size:9px;color:var(--muted);
+    opacity:.55;font-weight:700;letter-spacing:.3px;
+  }
 
   .filters{
     background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
@@ -201,6 +207,53 @@
   .analista-expandido-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
   @media(max-width:700px){.analista-expandido-grid{grid-template-columns:1fr;}}
   .analista-expandido-grid .stat-list{grid-template-columns:1fr 1fr;}
+
+  /* ===== MODAL KPI ===== */
+  .modal-backdrop{
+    position:fixed;inset:0;background:rgba(18,33,59,.55);
+    z-index:200;display:none;align-items:flex-start;justify-content:center;
+    padding:8vh 16px 40px;overflow-y:auto;
+    -webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);
+  }
+  .modal-backdrop.open{display:flex;}
+  .modal-box{
+    background:var(--card);border-radius:16px;max-width:480px;width:100%;
+    max-height:78vh;display:flex;flex-direction:column;overflow:hidden;
+    box-shadow:0 24px 60px rgba(0,0,0,.35);
+    animation:modalIn .18s ease;
+  }
+  @keyframes modalIn{from{opacity:0;transform:translateY(10px) scale(.98);}to{opacity:1;transform:none;}}
+  .modal-header{
+    padding:16px 18px;display:flex;justify-content:space-between;align-items:center;
+    color:#fff;flex-shrink:0;
+  }
+  .modal-header.steel{background:linear-gradient(135deg,var(--steel),var(--steel-light));}
+  .modal-header.indigo{background:linear-gradient(135deg,#5B5FA6,#7A7ECB);}
+  .modal-header.teal{background:linear-gradient(135deg,#1C8C8C,#2CB0B0);}
+  .modal-header.slate{background:linear-gradient(135deg,#5A6987,#7C8CAC);}
+  .modal-header.amber{background:linear-gradient(135deg,var(--amber),#F2B36B);}
+  .modal-header.green{background:linear-gradient(135deg,var(--green),#5DBE8A);}
+  .modal-header h3{margin:0;font-size:15px;font-weight:800;letter-spacing:.2px;padding-right:10px;}
+  .modal-header .sub{font-size:11px;opacity:.85;font-weight:500;margin-top:2px;}
+  .modal-close{
+    background:rgba(255,255,255,.22);border:none;color:#fff;
+    width:28px;height:28px;min-width:28px;border-radius:50%;cursor:pointer;
+    font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center;
+    transition:background .15s;
+  }
+  .modal-close:hover{background:rgba(255,255,255,.35);}
+  .modal-body{padding:8px 18px 16px;overflow-y:auto;}
+  .modal-row{
+    display:flex;justify-content:space-between;align-items:center;gap:12px;
+    padding:11px 0;border-bottom:1px dashed var(--line);
+  }
+  .modal-row:last-child{border-bottom:none;}
+  .modal-row .nombre{font-size:13.5px;font-weight:700;color:var(--navy);min-width:0;overflow-wrap:break-word;}
+  .modal-row .valor{font-family:var(--mono);font-weight:800;font-size:13.5px;white-space:nowrap;color:var(--text);flex-shrink:0;}
+  .modal-count{
+    font-family:var(--mono);font-size:11px;color:var(--muted);
+    padding:10px 18px 0;flex-shrink:0;
+  }
 </style>
 </head>
 <body>
@@ -219,12 +272,12 @@
 <div class="wrap">
 
   <div class="kpi-grid" id="kpiGrid">
-    <div class="kpi steel"><div class="label">Tiendas activas</div><div class="value" id="kTiendas">–</div></div>
-    <div class="kpi indigo"><div class="label">Analistas activos</div><div class="value" id="kAnalistas">–</div></div>
-    <div class="kpi teal"><div class="label">Códigos contados</div><div class="value" id="kCodigos">–</div></div>
-    <div class="kpi slate"><div class="label">Piezas contadas</div><div class="value" id="kPiezas">–</div></div>
-    <div class="kpi amber"><div class="label">Códigos con diferencia</div><div class="value" id="kDif">–</div></div>
-    <div class="kpi green"><div class="label">Códigos sin diferencia</div><div class="value" id="kOk">–</div></div>
+    <div class="kpi steel" data-kpi="tiendas"><div class="label">Tiendas activas</div><div class="value" id="kTiendas">–</div></div>
+    <div class="kpi indigo" data-kpi="analistas"><div class="label">Analistas activos</div><div class="value" id="kAnalistas">–</div></div>
+    <div class="kpi teal" data-kpi="codigos"><div class="label">Códigos contados</div><div class="value" id="kCodigos">–</div></div>
+    <div class="kpi slate" data-kpi="piezas"><div class="label">Piezas contadas</div><div class="value" id="kPiezas">–</div></div>
+    <div class="kpi amber" data-kpi="condif"><div class="label">Códigos con diferencia</div><div class="value" id="kDif">–</div></div>
+    <div class="kpi green" data-kpi="sindif"><div class="label">Códigos sin diferencia</div><div class="value" id="kOk">–</div></div>
   </div>
 
   <div class="filters">
@@ -249,6 +302,21 @@
     </div>
   </div>
 
+</div>
+
+<!-- ===== MODAL KPI (detalle al tocar una tarjeta) ===== -->
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal-box" id="modalBox">
+    <div class="modal-header" id="modalHeader">
+      <div>
+        <h3 id="modalTitulo">Título</h3>
+        <div class="sub" id="modalSub"></div>
+      </div>
+      <button class="modal-close" id="modalCloseBtn" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="modal-count" id="modalCount"></div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
 </div>
 
 <script>
@@ -295,6 +363,76 @@ async function cargarModeloCompleto() {
     hideLoading();
   }
 }
+
+// ==================== MODAL DE TARJETAS KPI ====================
+
+const KPI_CONFIG = {
+  tiendas: { titulo: 'Tiendas activas', color: 'steel', columna: 'Fecha de inicio' },
+  analistas: { titulo: 'Analistas activos', color: 'indigo', columna: 'Tienda asignada' },
+  codigos: { titulo: 'Códigos contados', color: 'teal', columna: 'Códigos', campo: 'codigosContados' },
+  piezas: { titulo: 'Piezas contadas', color: 'slate', columna: 'Piezas', campo: 'piezasContadas' },
+  condif: { titulo: 'Códigos con diferencia', color: 'amber', columna: 'Con diferencia', campo: 'itemsConDiferencia' },
+  sindif: { titulo: 'Códigos sin diferencia', color: 'green', columna: 'Sin diferencia', campo: 'itemsSinDiferencia' }
+};
+
+function abrirModalKpi(tipo) {
+  if (!modeloGlobal) return;
+  const cfg = KPI_CONFIG[tipo];
+  if (!cfg) return;
+
+  let filas = [];
+
+  if (tipo === 'tiendas') {
+    filas = (modeloGlobal.tiendas || [])
+      .filter(t => t.activa)
+      .sort((a, b) => a.nombre.localeCompare(b.nombre))
+      .map(t => ({ nombre: t.nombre, valor: fmtDate(t.fechaApertura) }));
+  } else if (tipo === 'analistas') {
+    filas = (modeloGlobal.analistas || [])
+      .filter(a => a.activo)
+      .sort((a, b) => a.nombre.localeCompare(b.nombre))
+      .map(a => ({ nombre: a.nombre, valor: a.tiendaAsignada || 'No asignada' }));
+  } else {
+    filas = (modeloGlobal.tiendas || [])
+      .filter(t => t.activa)
+      .sort((a, b) => (b[cfg.campo] || 0) - (a[cfg.campo] || 0))
+      .map(t => ({ nombre: t.nombre, valor: fmt(t[cfg.campo]) }));
+  }
+
+  $('modalHeader').className = 'modal-header ' + cfg.color;
+  $('modalTitulo').textContent = cfg.titulo;
+  $('modalSub').textContent = cfg.columna;
+  $('modalCount').textContent = filas.length + (filas.length === 1 ? ' registro' : ' registros');
+
+  if (!filas.length) {
+    $('modalBody').innerHTML = '<div class="empty-state">Sin datos disponibles.</div>';
+  } else {
+    $('modalBody').innerHTML = filas.map(f => `
+      <div class="modal-row">
+        <span class="nombre">${f.nombre}</span>
+        <span class="valor">${f.valor}</span>
+      </div>`).join('');
+  }
+
+  $('modalBackdrop').classList.add('open');
+}
+
+function cerrarModalKpi() {
+  $('modalBackdrop').classList.remove('open');
+}
+
+document.querySelectorAll('[data-kpi]').forEach(el => {
+  el.addEventListener('click', () => abrirModalKpi(el.dataset.kpi));
+});
+$('modalCloseBtn').addEventListener('click', cerrarModalKpi);
+$('modalBackdrop').addEventListener('click', e => {
+  if (e.target === e.currentTarget) cerrarModalKpi();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') cerrarModalKpi();
+});
+
+// ==================== VISTAS PRINCIPALES ====================
 
 async function renderVistaGeneral() {
   destroyChart();
