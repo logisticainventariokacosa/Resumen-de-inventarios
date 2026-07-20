@@ -111,22 +111,21 @@
   .stat-list .k{font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:600;}
   .stat-list .v{font-family:var(--mono);font-size:16px;font-weight:700;color:var(--navy);margin-top:2px;}
 
-  .progress-wrap{margin:14px 0 10px;}
-  .progress-track{height:36px;border-radius:8px;background:var(--line);overflow:hidden;position:relative;box-shadow:inset 0 2px 4px rgba(0,0,0,.06);}
-  .progress-fill{height:100%;background:linear-gradient(90deg,var(--steel),var(--steel-light));transition:width .6s ease;border-radius:8px;}
-  .progress-label{
-    position:absolute;inset:0;
-    display:flex;align-items:center;justify-content:center;
-    font-size:14px;font-weight:800;color:#fff;
-    text-shadow:0 1px 6px rgba(0,0,0,.4), 0 2px 12px rgba(0,0,0,.2);
-    font-family:var(--mono);letter-spacing:0.3px;
-    padding:0 12px;text-align:center;
+  .progress-wrap{margin:14px 0 16px;}
+  .progress-label-top{
+    display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px;
+    margin-bottom:8px;font-family:var(--mono);
   }
-  .progress-label .num{font-size:18px;margin:0 4px;}
+  .progress-label-top .main{font-size:14px;color:var(--text);}
+  .progress-label-top .main b{font-size:17px;color:var(--navy);}
+  .progress-label-top .pct{
+    font-size:15px;font-weight:800;color:var(--steel);
+    background:rgba(45,110,142,.1);padding:2px 10px;border-radius:20px;
+  }
+  .progress-track{height:14px;border-radius:8px;background:var(--line);overflow:hidden;position:relative;box-shadow:inset 0 1px 3px rgba(0,0,0,.08);}
+  .progress-fill{height:100%;background:linear-gradient(90deg,var(--steel),var(--steel-light));transition:width .6s ease;border-radius:8px;}
   @media(max-width:600px){
-    .progress-track{height:44px;}
-    .progress-label{font-size:13px;}
-    .progress-label .num{font-size:16px;}
+    .progress-label-top{flex-direction:column;align-items:flex-start;}
   }
 
   .clickable{transition:all .15s;cursor:pointer;}
@@ -229,7 +228,7 @@
 </div>
 
 <script>
-const API_URL = 'https://script.google.com/macros/s/AKfycbwa8KLE0CF0qnhYPD7_E5oSfyYKP4uqaZBLWWgA6d65koHtrCU0KDM1Y76140uAleZm/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycby3sVIcPfIY1xJUO_qHYXH_XcL0QhPSbNrqLiSaBrKCcH7l54uDPVCK4hlR1kTztlg76Q/exec';
 
 const $ = id => document.getElementById(id);
 let chartRef = null;
@@ -332,11 +331,12 @@ async function renderTienda(nombre) {
           <span class="badge on">Inventario activo</span>
         </div>
         <div class="progress-wrap">
+          <div class="progress-label-top">
+            <span class="main"><b>${fmt(t.codigosContados)}</b> de <b>${fmt(t.stockTotal)}</b> códigos contados</span>
+            <span class="pct">${avance.toFixed(1)}%</span>
+          </div>
           <div class="progress-track">
             <div class="progress-fill" style="width:${Math.min(avance,100)}%"></div>
-            <div class="progress-label">
-              <span class="num">${fmt(t.codigosContados)}</span> de <span class="num">${fmt(t.stockTotal)}</span> códigos contados (${avance.toFixed(1)}%)
-            </div>
           </div>
         </div>
         <div class="stat-list">
@@ -602,6 +602,7 @@ async function renderAnalista(nombre) {
           <div class="item"><div class="k">Piezas contadas</div><div class="v" id="analistaPiezas">${fmt(a.piezasContadas)}</div></div>
           <div class="item"><div class="k">Sin diferencia (OK)</div><div class="v" id="analistaOk" style="color:var(--green);">${fmt(a.conteosOk)}</div></div>
           <div class="item"><div class="k">Con diferencia</div><div class="v" id="analistaDif" style="color:var(--red);">${fmt(a.conteosDiferencia)}</div></div>
+          <div class="item"><div class="k">Días activos (total, todas las tiendas)</div><div class="v" id="analistaDiasTotal">${fmt(a.diasActivos)}</div></div>
           <div class="item"><div class="k">Promedio códigos / día</div><div class="v" id="analistaPromedio">${a.promedioCodigosPorDia.toFixed(2)}</div></div>
           <div class="item"><div class="k">Promedio códigos / tienda</div><div class="v">${a.promedioCodigosPorTienda.toFixed(2)}</div></div>
           <div class="item"><div class="k">Tienda actual asignada</div><div class="v">${a.tiendaAsignada || 'No asignada'}</div></div>
