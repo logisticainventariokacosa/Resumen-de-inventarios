@@ -814,8 +814,8 @@ async function renderTienda(nombre) {
           <div class="item"><div class="k">Piezas contadas</div><div class="v">${fmt(t.piezasContadas)}</div></div>
           <div class="item"><div class="k">Ítems con diferencia</div><div class="v">${fmt(t.itemsConDiferencia)}</div></div>
           <div class="item"><div class="k">Ítems sin diferencia</div><div class="v">${fmt(t.itemsSinDiferencia)}</div></div>
-          <div class="item"><div class="k">📊 Promedio códigos / día</div><div class="v">${promedioCodigosPorDia.toFixed(2)}</div></div>
-          <div class="item"><div class="k">🎯 Efectividad</div><div class="v" style="color:${colorEfectividad};">${efectividad.toFixed(1)}%</div></div>
+          <div class="item"><div class="k">Promedio códigos / día</div><div class="v">${promedioCodigosPorDia.toFixed(2)}</div></div>
+          <div class="item"><div class="k">Efectividad de conteo</div><div class="v" style="color:${colorEfectividad};">${efectividad.toFixed(1)}%</div></div>
         </div>
         <div style="margin-top:12px;font-size:12px;color:var(--muted);font-weight:600;">Analistas que han contado aquí:</div>
         <div class="tag-list">${t.analistas.map(a => `
@@ -946,8 +946,8 @@ async function desplegarAnalistaEnTienda(nombreAnalista, nombreTienda) {
             <div class="item"><div class="k">Con diferencia</div><div class="v" style="color:var(--red);">${fmt(a.conteosDiferencia)}</div></div>
             <div class="item"><div class="k">Días activos en esta tienda</div><div class="v">${a.diasActivos || '—'}</div></div>
             <div class="item"><div class="k">Promedio códigos / día</div><div class="v">${promedioPorDia.toFixed(2)}</div></div>
-            <div class="item"><div class="k">📦 Promedio piezas / día</div><div class="v">${promedioPiezasPorDia.toFixed(2)}</div></div>
-            <div class="item"><div class="k">🎯 Efectividad</div><div class="v" style="color:${colorEfectividad};">${efectividadAnalista.toFixed(1)}%</div></div>
+            <div class="item"><div class="k">Promedio piezas contadas / día</div><div class="v">${promedioPiezasPorDia.toFixed(2)}</div></div>
+            <div class="item"><div class="k">Efectividad de conteo</div><div class="v" style="color:${colorEfectividad};">${efectividadAnalista.toFixed(1)}%</div></div>
           </div>
         </div>
         <div>
