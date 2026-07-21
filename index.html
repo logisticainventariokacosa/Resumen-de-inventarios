@@ -611,6 +611,29 @@ function fmt(n){ return new Intl.NumberFormat('es-VE').format(Math.round(n || 0)
 function fmtDate(iso){ if(!iso)return '—'; const d=new Date(iso); if(isNaN(d))return iso; return d.toLocaleDateString('es-VE'); }
 function destroyChart(){ if(chartRef){ chartRef.destroy(); chartRef=null; } if(chartRef2){ chartRef2.destroy(); chartRef2=null; } }
 
+// ==================== FUNCIONES DE CÁLCULO ====================
+
+function calcularPromedioCodigosPorDia(codigosContados, diasTranscurridos) {
+  if (!diasTranscurridos || diasTranscurridos === 0) return 0;
+  return Math.round((codigosContados / diasTranscurridos) * 100) / 100;
+}
+
+function calcularEfectividad(itemsSinDiferencia, codigosContados) {
+  if (!codigosContados || codigosContados === 0) return 0;
+  return Math.round((itemsSinDiferencia / codigosContados) * 10000) / 100;
+}
+
+function calcularPromedioPiezasPorDia(piezasContadas, diasActivos) {
+  if (!diasActivos || diasActivos === 0) return 0;
+  return Math.round((piezasContadas / diasActivos) * 100) / 100;
+}
+
+function getEfectividadColor(valor) {
+  if (valor >= 80) return 'var(--green)';
+  if (valor >= 50) return 'var(--amber)';
+  return 'var(--red)';
+}
+
 async function api(action, params) {
   const url = new URL(API_URL);
   url.searchParams.set('action', action);
@@ -762,6 +785,11 @@ async function renderTienda(nombre) {
 
   const avance = t.stockTotal > 0 ? (t.codigosContados / t.stockTotal) * 100 : 0;
   
+  // Calcular métricas para la tienda
+  const promedioCodigosPorDia = calcularPromedioCodigosPorDia(t.codigosContados, t.diasTranscurridos);
+  const efectividad = calcularEfectividad(t.itemsSinDiferencia, t.codigosContados);
+  const colorEfectividad = getEfectividadColor(efectividad);
+  
   let html = `
     <div class="section-title">Tienda · ${t.nombre}</div>
     <div class="grid-2" id="tiendaGrid">
@@ -786,6 +814,8 @@ async function renderTienda(nombre) {
           <div class="item"><div class="k">Piezas contadas</div><div class="v">${fmt(t.piezasContadas)}</div></div>
           <div class="item"><div class="k">Ítems con diferencia</div><div class="v">${fmt(t.itemsConDiferencia)}</div></div>
           <div class="item"><div class="k">Ítems sin diferencia</div><div class="v">${fmt(t.itemsSinDiferencia)}</div></div>
+          <div class="item"><div class="k">📊 Promedio códigos / día</div><div class="v">${promedioCodigosPorDia.toFixed(2)}</div></div>
+          <div class="item"><div class="k">🎯 Efectividad</div><div class="v" style="color:${colorEfectividad};">${efectividad.toFixed(1)}%</div></div>
         </div>
         <div style="margin-top:12px;font-size:12px;color:var(--muted);font-weight:600;">Analistas que han contado aquí:</div>
         <div class="tag-list">${t.analistas.map(a => `
@@ -897,6 +927,9 @@ async function desplegarAnalistaEnTienda(nombreAnalista, nombreTienda) {
   }
 
   const promedioPorDia = a.promedioCodigosPorDia || (a.codigosContados / (a.diasActivos || 1));
+  const promedioPiezasPorDia = calcularPromedioPiezasPorDia(a.piezasContadas, a.diasActivos || 1);
+  const efectividadAnalista = calcularEfectividad(a.conteosOk, a.codigosContados);
+  const colorEfectividad = getEfectividadColor(efectividadAnalista);
 
   container.innerHTML = `
     <div class="card analista-card">
@@ -913,6 +946,8 @@ async function desplegarAnalistaEnTienda(nombreAnalista, nombreTienda) {
             <div class="item"><div class="k">Con diferencia</div><div class="v" style="color:var(--red);">${fmt(a.conteosDiferencia)}</div></div>
             <div class="item"><div class="k">Días activos en esta tienda</div><div class="v">${a.diasActivos || '—'}</div></div>
             <div class="item"><div class="k">Promedio códigos / día</div><div class="v">${promedioPorDia.toFixed(2)}</div></div>
+            <div class="item"><div class="k">📦 Promedio piezas / día</div><div class="v">${promedioPiezasPorDia.toFixed(2)}</div></div>
+            <div class="item"><div class="k">🎯 Efectividad</div><div class="v" style="color:${colorEfectividad};">${efectividadAnalista.toFixed(1)}%</div></div>
           </div>
         </div>
         <div>
@@ -1030,6 +1065,10 @@ async function renderAnalista(nombre) {
     diasActivos: a.diasActivos
   };
 
+  const promedioPiezasPorDiaGlobal = calcularPromedioPiezasPorDia(a.piezasContadas, a.diasActivos || 1);
+  const efectividadGlobal = calcularEfectividad(a.conteosOk, a.codigosContados);
+  const colorEfectividadGlobal = getEfectividadColor(efectividadGlobal);
+
   let html = `
     <div class="section-title">Analista · ${a.nombre}</div>
     <div class="grid-2">
@@ -1043,9 +1082,11 @@ async function renderAnalista(nombre) {
           <div class="item"><div class="k">Piezas contadas</div><div class="v" id="analistaPiezas">${fmt(a.piezasContadas)}</div></div>
           <div class="item"><div class="k">Sin diferencia (OK)</div><div class="v" id="analistaOk" style="color:var(--green);">${fmt(a.conteosOk)}</div></div>
           <div class="item"><div class="k">Con diferencia</div><div class="v" id="analistaDif" style="color:var(--red);">${fmt(a.conteosDiferencia)}</div></div>
-          <div class="item"><div class="k" id="analistaDiasLabel">Días activos (total, todas las tiendas)</div><div class="v" id="analistaDiasTotal">${fmt(a.diasActivos)}</div></div>
+          <div class="item"><div class="k" id="analistaDiasLabel">Días activos (total)</div><div class="v" id="analistaDiasTotal">${fmt(a.diasActivos)}</div></div>
           <div class="item"><div class="k">Promedio códigos / día</div><div class="v" id="analistaPromedio">${a.promedioCodigosPorDia.toFixed(2)}</div></div>
           <div class="item"><div class="k">Promedio códigos / tienda</div><div class="v">${a.promedioCodigosPorTienda.toFixed(2)}</div></div>
+          <div class="item"><div class="k">📦 Promedio piezas / día</div><div class="v" id="analistaPromedioPiezas">${promedioPiezasPorDiaGlobal.toFixed(2)}</div></div>
+          <div class="item"><div class="k">🎯 Efectividad</div><div class="v" id="analistaEfectividad" style="color:${colorEfectividadGlobal};">${efectividadGlobal.toFixed(1)}%</div></div>
           <div class="item"><div class="k">Tienda actual asignada</div><div class="v">${a.tiendaAsignada || 'No asignada'}</div></div>
         </div>
         <div style="margin-top:12px;font-size:12px;color:var(--muted);font-weight:600;">Tiendas donde ha contado (click para filtrar):</div>
@@ -1156,6 +1197,9 @@ async function filtrarAnalistaPorTienda(a, tiendaNombre) {
   }
 
   const promedioPorDia = aFiltrado.promedioCodigosPorDia || (aFiltrado.codigosContados / (aFiltrado.diasActivos || 1));
+  const promedioPiezasFiltrado = calcularPromedioPiezasPorDia(aFiltrado.piezasContadas, aFiltrado.diasActivos || 1);
+  const efectividadFiltrado = calcularEfectividad(aFiltrado.conteosOk, aFiltrado.codigosContados);
+  const colorEfectividad = getEfectividadColor(efectividadFiltrado);
 
   const codigosEl = document.getElementById('analistaCodigos');
   const piezasEl = document.getElementById('analistaPiezas');
@@ -1164,6 +1208,8 @@ async function filtrarAnalistaPorTienda(a, tiendaNombre) {
   const promedioEl = document.getElementById('analistaPromedio');
   const diasEl = document.getElementById('analistaDiasTotal');
   const diasLabelEl = document.getElementById('analistaDiasLabel');
+  const promedioPiezasEl = document.getElementById('analistaPromedioPiezas');
+  const efectividadEl = document.getElementById('analistaEfectividad');
   
   if (codigosEl) codigosEl.textContent = fmt(aFiltrado.codigosContados);
   if (piezasEl) piezasEl.textContent = fmt(aFiltrado.piezasContadas);
@@ -1172,6 +1218,11 @@ async function filtrarAnalistaPorTienda(a, tiendaNombre) {
   if (promedioEl) promedioEl.textContent = promedioPorDia.toFixed(2);
   if (diasEl) diasEl.textContent = fmt(aFiltrado.diasActivos || 1);
   if (diasLabelEl) diasLabelEl.textContent = 'Días activos en ' + tiendaNombre;
+  if (promedioPiezasEl) promedioPiezasEl.textContent = promedioPiezasFiltrado.toFixed(2);
+  if (efectividadEl) {
+    efectividadEl.textContent = efectividadFiltrado.toFixed(1) + '%';
+    efectividadEl.style.color = colorEfectividad;
+  }
   
   if (chartRef) {
     chartRef.data.datasets[0].data = [aFiltrado.conteosOk, aFiltrado.conteosDiferencia];
@@ -1197,6 +1248,10 @@ async function filtrarAnalistaPorTienda(a, tiendaNombre) {
 function resetFiltroAnalista(a, datosGlobales) {
   vistaActual.tiendaFiltro = null;
   
+  const promedioPiezasGlobal = calcularPromedioPiezasPorDia(datosGlobales.piezasContadas, datosGlobales.diasActivos || 1);
+  const efectividadGlobal = calcularEfectividad(datosGlobales.conteosOk, datosGlobales.codigosContados);
+  const colorEfectividad = getEfectividadColor(efectividadGlobal);
+  
   const codigosEl = document.getElementById('analistaCodigos');
   const piezasEl = document.getElementById('analistaPiezas');
   const okEl = document.getElementById('analistaOk');
@@ -1204,6 +1259,8 @@ function resetFiltroAnalista(a, datosGlobales) {
   const promedioEl = document.getElementById('analistaPromedio');
   const diasEl = document.getElementById('analistaDiasTotal');
   const diasLabelEl = document.getElementById('analistaDiasLabel');
+  const promedioPiezasEl = document.getElementById('analistaPromedioPiezas');
+  const efectividadEl = document.getElementById('analistaEfectividad');
   
   if (codigosEl) codigosEl.textContent = fmt(datosGlobales.codigosContados);
   if (piezasEl) piezasEl.textContent = fmt(datosGlobales.piezasContadas);
@@ -1212,6 +1269,11 @@ function resetFiltroAnalista(a, datosGlobales) {
   if (promedioEl) promedioEl.textContent = datosGlobales.promedioCodigosPorDia.toFixed(2);
   if (diasEl) diasEl.textContent = fmt(datosGlobales.diasActivos);
   if (diasLabelEl) diasLabelEl.textContent = 'Días activos (total, todas las tiendas)';
+  if (promedioPiezasEl) promedioPiezasEl.textContent = promedioPiezasGlobal.toFixed(2);
+  if (efectividadEl) {
+    efectividadEl.textContent = efectividadGlobal.toFixed(1) + '%';
+    efectividadEl.style.color = colorEfectividad;
+  }
   
   if (chartRef) {
     chartRef.data.datasets[0].data = [datosGlobales.conteosOk, datosGlobales.conteosDiferencia];
