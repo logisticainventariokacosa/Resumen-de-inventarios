@@ -28,6 +28,7 @@
     --text:#16202E;
     --muted:#6B7686;
     --radius:14px;
+    --footer-height:64px;
     --mono:'JetBrains Mono',monospace;
     --sans:'Manrope',sans-serif;
   }
@@ -40,6 +41,7 @@
     display:flex;
     flex-direction:column;
     min-height:100vh;
+    padding-bottom:var(--footer-height);
   }
   a{color:inherit;cursor:pointer;}
 
@@ -380,9 +382,13 @@
 
   /* ===== PIE DE PÁGINA - FULL WIDTH (fuera del contenedor) ===== */
   .footer {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 25;
     background: linear-gradient(135deg, #12213B 0%, #1B3358 100%);
     padding: 10px 24px;
-    margin-top: auto;
     width: 100%;
     display: flex;
     align-items: center;
@@ -392,7 +398,12 @@
     border-top: 2px solid rgba(232, 150, 60, 0.15);
     box-shadow: 0 -4px 20px rgba(18, 33, 59, 0.15);
     box-sizing: border-box;
+    transform: translateY(0);
+    transition: transform .28s ease;
+    will-change: transform;
   }
+
+  .footer.hidden { transform: translateY(110%); }
 
   .footer-left {
     display: flex;
@@ -705,7 +716,8 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
 <script>
-const API_URL = 'https://script.google.com/macros/s/AKfycby3sVIcPfIY1xJUO_qHYXH_XcL0QhPSbNrqLiSaBrKCcH7l54uDPVCK4hlR1kTztlg76Q/exec';
+const queryParams = new URLSearchParams(window.location.search);
+const API_URL = queryParams.get('apiUrl') || 'https://script.google.com/macros/s/AKfycby3sVIcPfIY1xJUO_qHYXH_XcL0QhPSbNrqLiSaBrKCcH7l54uDPVCK4hlR1kTztlg76Q/exec';
 
 // Mismo proyecto de Firebase que el Portal KACOSA: si el usuario ya inició
 // sesión en el portal, entra aquí directo sin volver a loguearse.
@@ -1698,5 +1710,41 @@ async function iniciarDashboard(){
   hideLoading();
 }
 </script>
+
+<script>
+(function(){
+  const footer = document.querySelector('.footer');
+  if(!footer) return;
+  let lastScroll = window.scrollY || 0;
+  let ticking = false;
+
+  window.addEventListener('scroll', () => {
+    const current = window.scrollY || 0;
+    if (!ticking) {
+      window.requestAnimationFrame(() => {
+        if (current > lastScroll && current > 50) {
+          footer.classList.add('hidden');
+        } else {
+          footer.classList.remove('hidden');
+        }
+        lastScroll = current;
+        ticking = false;
+      });
+      ticking = true;
+    }
+  }, { passive: true });
+
+  // Mobile touch gestures: detect vertical swipe to hide/show footer
+  let touchStartY = 0;
+  window.addEventListener('touchstart', e => { touchStartY = e.touches[0].clientY; }, { passive: true });
+  window.addEventListener('touchmove', e => {
+    const currentY = e.touches[0].clientY;
+    if (currentY < touchStartY - 10) footer.classList.add('hidden');
+    if (currentY > touchStartY + 10) footer.classList.remove('hidden');
+  }, { passive: true });
+
+})();
+</script>
+
 </body>
 </html>
